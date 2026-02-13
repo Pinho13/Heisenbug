@@ -1,0 +1,23 @@
+### Python / Django ###
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+sessions/
+accumulated_static/
+media/
+staticfiles/
+
+### Ambientes Virtuais ###
+venv/
+env/
+ENV/
+.env
+.venv/
+
+### Frontend (JS/CSS) ###
+node_modules/
+npm-debug.log*
