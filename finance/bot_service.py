@@ -229,9 +229,8 @@ class BotRunner:
 
         self.running = True
         self._run_loop()
-        # self.thread = threading.Thread(target=self._run_loop, daemon=False)
-        # print("thread worked..?")
-        # self.thread.start()
+        self.thread = threading.Thread(target=self._run_loop, daemon=False)
+        self.thread.start()
         self.logger.info("Bot started")
 
     def stop(self):
