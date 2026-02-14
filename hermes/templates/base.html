@@ -1,19 +1,393 @@
-{% load static tailwind_tags %}
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
-    <title>Django Tailwind</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    {% tailwind_css %}
+    <title>Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
+<body class="bg-[#0f0f23] text-white">
+<div class="flex min-h-screen">
 
-<body class="bg-gray-50 text-black font-serif leading-normal tracking-normal">
-<div class="container mx-auto">
-    <section class="flex items-center justify-center h-screen">
-        <h1 class="text-5xl">Django + Tailwind = ❤️</h1>
-    </section>
+    <!-- Sidebar -->
+    <aside class="w-48 bg-[#16213e] p-4 flex flex-col">
+        <div class="flex gap-2 mb-8">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+        </div>
+
+        <nav class="flex-1 space-y-2">
+            <a href="#" class="flex items-center gap-3 bg-indigo-600/30 text-white px-4 py-3 rounded-lg border border-indigo-500/50">
+                <span>🏠</span>
+                <span>Home</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 text-slate-400 hover:text-white px-4 py-3 rounded-lg">
+                <span>📌</span>
+                <span>Pinho</span>
+            </a>
+        </nav>
+
+        <a href="#" class="flex items-center gap-3 text-slate-400 hover:text-white px-4 py-3 rounded-lg mt-auto">
+            <span>🚪</span>
+            <span>Signout</span>
+        </a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8">
+
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div class="relative flex-1 max-w-2xl">
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input type="text" placeholder="Search here..." class="w-full bg-[#1a1a2e] border border-slate-700/50 rounded-lg px-4 py-3 pl-11 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex items-center gap-6 ml-8">
+                <span class="text-2xl font-bold">€50 000</span>
+                <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" class="w-10 h-10 rounded-full border-2 border-indigo-500">
+            </div>
+        </header>
+
+        <div class="grid grid-cols-3 gap-6">
+
+            <!-- Today's Trades -->
+            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+                <h2 class="text-xl font-semibold mb-6">Today's Trades</h2>
+                <table class="w-full">
+                    <thead>
+                    <tr class="text-slate-400 text-sm">
+                        <th class="text-left pb-4">Time</th>
+                        <th class="text-left pb-4">Pair's Symbol</th>
+                        <th class="text-left pb-4">State</th>
+                        <th class="text-left pb-4">Profit (%)</th>
+                        <th class="text-left pb-4">PnL</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50">
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="flex items-center gap-2">
+                                <button class="text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <span class="text-sm text-slate-300">17:52:04</span>
+                            </div>
+                        </td>
+                        <td class="py-4 font-medium">USD/BTC</td>
+                        <td class="py-4">
+                            <div class="flex items-center gap-2 text-sm text-slate-300">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Completed</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">● 2.3s</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">3 steps</span>
+                            </div>
+                        </td>
+                        <td class="py-4 text-green-400 font-medium">+0.52%</td>
+                        <td class="py-4">
+                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
+                                        109€
+                                    </span>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="flex items-center gap-2">
+                                <button class="text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <span class="text-sm text-slate-300">17:52:04</span>
+                            </div>
+                        </td>
+                        <td class="py-4 font-medium">USD/BTC</td>
+                        <td class="py-4">
+                            <div class="flex items-center gap-2 text-sm text-slate-300">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Completed</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">● 2.3s</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">3 steps</span>
+                            </div>
+                        </td>
+                        <td class="py-4 text-red-400 font-medium">-0.52%</td>
+                        <td class="py-4">
+                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+                                        -109€
+                                    </span>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="flex items-center gap-2">
+                                <button class="text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <span class="text-sm text-slate-300">17:52:04</span>
+                            </div>
+                        </td>
+                        <td class="py-4 font-medium">USD/BTC</td>
+                        <td class="py-4">
+                            <div class="flex items-center gap-2 text-sm text-slate-300">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Completed</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">● 2.3s</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">3 steps</span>
+                            </div>
+                        </td>
+                        <td class="py-4 text-green-400 font-medium">+0.52%</td>
+                        <td class="py-4">
+                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
+                                        109€
+                                    </span>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="flex items-center gap-2">
+                                <button class="text-slate-500">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                                <span class="text-sm text-slate-300">17:52:04</span>
+                            </div>
+                        </td>
+                        <td class="py-4 font-medium">USD/BTC</td>
+                        <td class="py-4">
+                            <div class="flex items-center gap-2 text-sm text-slate-300">
+                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Completed</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">● 2.3s</span>
+                                <span class="text-slate-500">|</span>
+                                <span class="text-slate-400">3 steps</span>
+                            </div>
+                        </td>
+                        <td class="py-4 text-red-400 font-medium">-0.52%</td>
+                        <td class="py-4">
+                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+                                        -109€
+                                    </span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Currency -->
+            <aside class="bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold">Currency</h2>
+                    <div class="relative">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <input type="text" placeholder="Search here..." class="bg-[#0f0f23] border border-slate-700/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-500 focus:outline-none w-36">
+                    </div>
+                </div>
+
+                <div class="flex justify-center mb-8">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-4xl font-bold shadow-lg">
+                        ₿
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
+                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
+                            <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                            <span>Aimed Profit</span>
+                        </div>
+                        <div class="text-lg font-bold">$4,087</div>
+                    </div>
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
+                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
+                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                            <span>Amount</span>
+                        </div>
+                        <div class="text-lg font-bold">$5,506</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Top Currencies -->
+            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+                <h2 class="text-xl font-semibold mb-6">Top Currencies</h2>
+                <table class="w-full">
+                    <thead>
+                    <tr class="text-slate-400 text-sm">
+                        <th class="text-left pb-4">Icon</th>
+                        <th class="text-left pb-4">Pair's Symbol</th>
+                        <th class="text-left pb-4">Name</th>
+                        <th class="text-left pb-4">Daily Change (%)</th>
+                        <th class="text-right pb-4">Price</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50">
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-lg font-bold shadow-lg">₿</div>
+                        </td>
+                        <td class="py-4 font-semibold">USD/BTC</td>
+                        <td class="py-4 text-sm text-slate-400">United States Dollar / Bitcoin</td>
+                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
+                        <td class="py-4 text-right font-semibold">$100,000.00</td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="w-9 h-9 rounded-full bg-purple-500 flex items-center justify-center text-lg font-bold shadow-lg">Ξ</div>
+                        </td>
+                        <td class="py-4 font-semibold">USD/ETH</td>
+                        <td class="py-4 text-sm text-slate-400">United States Dollar / Ethereum</td>
+                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
+                        <td class="py-4 text-right font-semibold">$2,000.00</td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="w-9 h-9 rounded-full bg-cyan-500 flex items-center justify-center text-lg font-bold shadow-lg">◎</div>
+                        </td>
+                        <td class="py-4 font-semibold">USD/SOL</td>
+                        <td class="py-4 text-sm text-slate-400">United States Dollar / Solana</td>
+                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
+                        <td class="py-4 text-right font-semibold">$230.00</td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-lg font-bold shadow-lg">✕</div>
+                        </td>
+                        <td class="py-4 font-semibold">USD/XRP</td>
+                        <td class="py-4 text-sm text-slate-400">United States Dollar / Ripple</td>
+                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
+                        <td class="py-4 text-right font-semibold">$1.20</td>
+                    </tr>
+                    <tr class="hover:bg-white/5">
+                        <td class="py-4">
+                            <div class="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold shadow-lg">₳</div>
+                        </td>
+                        <td class="py-4 font-semibold">USD/ADA</td>
+                        <td class="py-4 text-sm text-slate-400">United States Dollar / Cardano</td>
+                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
+                        <td class="py-4 text-right font-semibold">$0.25</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Earnings -->
+            <section class="bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+                <h2 class="text-xl font-semibold mb-2">Earnings</h2>
+                <p class="text-sm text-slate-400 mb-4">Total Expense</p>
+                <div class="text-4xl font-bold text-indigo-400 mb-2">$6078.76</div>
+                <p class="text-sm text-slate-400 mb-8">Profit is <span class="text-green-400 font-semibold">48%</span> More than last Month</p>
+
+                <div class="flex justify-center">
+                    <div class="relative w-44 h-44">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                            <circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="16" fill="none" class="text-slate-800" />
+                            <circle cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#818cf8" />
+                                    <stop offset="100%" style="stop-color:#6366f1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-5xl font-bold">80%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History -->
+            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+                <h2 class="text-xl font-semibold mb-6">History</h2>
+                <div class="relative h-72">
+                    <svg class="w-full h-full" viewBox="0 0 800 280" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="rgb(99, 102, 241)" stop-opacity="0.3" />
+                                <stop offset="100%" stop-color="rgb(99, 102, 241)" stop-opacity="0" />
+                            </linearGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <line x1="0" y1="56" x2="800" y2="56" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
+                        <line x1="0" y1="112" x2="800" y2="112" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
+                        <line x1="0" y1="168" x2="800" y2="168" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
+                        <line x1="0" y1="224" x2="800" y2="224" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
+
+                        <path d="M 0 224 L 67 210 L 133 168 L 200 140 L 267 154 L 333 112 L 400 126 L 467 98 L 533 70 L 600 84 L 667 56 L 733 84 L 800 70 L 800 280 L 0 280 Z" fill="url(#chartGradient)" />
+                        <path d="M 0 224 L 67 210 L 133 168 L 200 140 L 267 154 L 333 112 L 400 126 L 467 98 L 533 70 L 600 84 L 667 56 L 733 84 L 800 70" fill="none" stroke="rgb(129, 140, 248)" stroke-width="3" filter="url(#glow)" />
+
+                        <circle cx="0" cy="224" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="67" cy="210" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="133" cy="168" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="200" cy="140" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="267" cy="154" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="333" cy="112" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="400" cy="126" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="467" cy="98" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="533" cy="70" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="600" cy="84" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="667" cy="56" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="733" cy="84" r="4" fill="rgb(129, 140, 248)" />
+                        <circle cx="800" cy="70" r="4" fill="rgb(129, 140, 248)" />
+                    </svg>
+                    <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-500 px-2">
+                        <span>Jan</span>
+                        <span>Feb</span>
+                        <span>Mar</span>
+                        <span>Apr</span>
+                        <span>May</span>
+                        <span>Jun</span>
+                        <span>Jul</span>
+                        <span>Aug</span>
+                        <span>Sep</span>
+                        <span>Oct</span>
+                        <span>Nov</span>
+                        <span>Dec</span>
+                    </div>
+                    <div class="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-500">
+                        <span>500</span>
+                        <span>400</span>
+                        <span>300</span>
+                        <span>200</span>
+                        <span>100</span>
+                        <span>0</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
 </div>
 </body>
 </html>
