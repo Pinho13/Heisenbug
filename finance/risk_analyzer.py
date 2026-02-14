@@ -1,6 +1,7 @@
 from decimal import Decimal
 from collections import deque
 import statistics
+from finance.models import PriceSnapshot
 
 
 class TradeDecision:
