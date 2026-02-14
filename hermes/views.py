@@ -1,4 +1,8 @@
 from django.shortcuts import render
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from finance.uphold_api import UpholdAPIHandler
 from finance.models import TradeHistory, BotConfig, PriceSnapshot
 import logging
@@ -57,3 +61,19 @@ def home(request):
     }
 
     return render(request, 'base.html', context)
+
+
+@require_http_methods(["GET", "POST"])
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            return JsonResponse({'success': True, 'message': 'Login successful'})
+        else:
+            return JsonResponse({'success': False, 'message': 'Invalid credentials'}, status=401)
+    
+    return render(request, 'hermes/login.html')
