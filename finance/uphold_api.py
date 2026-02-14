@@ -1,12 +1,15 @@
+from django.conf import settings
 import requests
 
 class UpholdAPIHandler:
     BASE_URL = "https://api.uphold.com/v0"
 
     def __init__(self, api_key=None):
+
+        actual_key = api_key or settings.UPHOLD_API_KEY
         self.headers = {}
-        if api_key:
-            self.headers['Authorization'] = f'Bearer {api_key}'
+        if actual_key:
+            self.headers['Authorization'] = f'Bearer {actual_key}'
 
     # Market Data
     def get_ticker(self, currency_pair: str):
