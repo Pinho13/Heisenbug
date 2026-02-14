@@ -11,6 +11,7 @@
 <div class="flex min-h-screen">
 
     <!-- Sidebar -->
+    <aside class="w-48 bg-[#16213e] p-4 flex flex-col">
         <nav class="flex-1 space-y-2">
             <a href="#" class="flex items-center gap-3 bg-indigo-600/30 text-white px-4 py-3 rounded-lg border border-indigo-500/50">
                 <span>🏠</span>
@@ -400,6 +401,7 @@
 </div>
 
 <script>
+    // Atualizar o tempo em tempo real
     function updateTime() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('pt-PT', {
@@ -409,19 +411,23 @@
             hour12: false
         });
 
+        // Atualizar todos os elementos de tempo
         document.getElementById('time1').textContent = timeString;
         document.getElementById('time2').textContent = timeString;
         document.getElementById('time3').textContent = timeString;
         document.getElementById('time4').textContent = timeString;
     }
 
+    // Atualizar a cada segundo
     updateTime();
     setInterval(updateTime, 1000);
 
+    // Função para formatar valores monetários
     function formatCurrency(value) {
         return '$' + parseInt(value).toLocaleString('en-US');
     }
 
+    // Aimed Profit - input editável
     const aimedProfitInput = document.getElementById('aimedProfitInput');
     const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
 
@@ -434,8 +440,12 @@
         const value = e.target.value || '4087';
         e.target.value = value;
         aimedProfitDisplay.textContent = formatCurrency(value);
+
+        // Aqui podes adicionar um AJAX call para guardar no backend
+        // saveToBackend('aimed_profit', value);
     });
 
+    // Amount - input editável
     const amountInput = document.getElementById('amountInput');
     const amountDisplay = document.getElementById('amountDisplay');
 
@@ -448,6 +458,9 @@
         const value = e.target.value || '5506';
         e.target.value = value;
         amountDisplay.textContent = formatCurrency(value);
+
+        // Aqui podes adicionar um AJAX call para guardar no backend
+        // saveToBackend('amount', value);
     });
 
     // Opcional: Função para guardar no backend via AJAX
