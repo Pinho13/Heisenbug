@@ -299,8 +299,8 @@
                     <!-- Risk -->
                     <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
                         <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
-                            <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
-                            <span>Amount</span>
+                            <div class="w-2 h-2 rounded-full bg-[#feb002]"></div>
+                            <span>Risk</span>
                         </div>
                         <div class="relative group">
                 <span
@@ -628,7 +628,8 @@
 
     // Função para formatar valores monetários
     function formatCurrency(value) {
-        return '$' + parseInt(value).toLocaleString('en-US');
+        if(riskInput) return parseInt(value).toLocaleString('pt-PT') + '%';
+        else return '€' + parseInt(value).toLocaleString('pt-PT');
     }
 
     // Aimed Profit
@@ -641,7 +642,7 @@
     });
 
     aimedProfitInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '4087';
+        const value = e.target.value || '0';
         e.target.value = value;
         aimedProfitDisplay.textContent = formatCurrency(value);
     });
@@ -656,9 +657,24 @@
     });
 
     amountInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '5506';
+        const value = e.target.value || '0';
         e.target.value = value;
         amountDisplay.textContent = formatCurrency(value);
+    });
+
+    // Risk
+    const riskInput = document.getElementById('riskInput');
+    const riskDisplay = document.getElementById('riskDisplay');
+
+    riskInput.addEventListener('input', function(e) {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = value;
+    });
+
+    riskInput.addEventListener('blur', function(e) {
+        const value = e.target.value || '0';
+        e.target.value = value;
+        riskDisplay.textContent = formatCurrency(value);
     });
 
 </script>
