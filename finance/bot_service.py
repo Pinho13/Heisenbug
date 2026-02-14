@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import Optional, Dict, List
 import threading
@@ -22,8 +23,8 @@ class TradeBot:
     - Log decision
     """
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.api = UpholdAPIHandler(api_key)
+    def __init__(self):
+        self.api = UpholdAPIHandler()
         self.optimizer = PortfolioOptimizer(self.api)
         self.cache = MarketDataCache()
         self.logger = logger
@@ -57,6 +58,7 @@ class TradeBot:
             )
         except Exception as e:
             self.logger.warning(f"Error storing price snapshot: {e}")
+
     def execute_trade(
         self,
         decision: TradeDecision,
@@ -97,6 +99,7 @@ class TradeBot:
         except Exception as e:
             self.logger.error(f"Failed to execute trade: {e}")
             TradeHistory.objects.create(
+                from_pair=decision.from_pair,
                 to_pair=decision.to_pair,
                 decision="BUY",
                 status="FAILED",
@@ -182,23 +185,44 @@ class TradeBot:
                               e}", exc_info=True)
             return None
 
+    def refresh_all_tickers(self) -> None:
+        try:
+            tickers = self.api.get_all_tickers()
+            if not tickers:
+                self.logger.warning("Full thicker refresh returned no data")
+                return
+            for pair, ticker in tickers.items():
+                self._store_price_snapshot(pair, ticker)
+            self.logger.debug(
+                f"Refreshed {len(tickers)} ticker snapshots"
+            )
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed full ticker refresh: {e}",
+                exc_info=True
+            )
+
 
 class BotRunner:
     """Manages bot execution loop."""
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.bot = TradeBot(api_key)
+    def __init__(self):
+        self.bot = TradeBot()
         self.running = False
         self.thread = None
         self.logger = logger
+        # threads!
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.refreshed_future = None
 
     def start(self):
         if self.running:
-            self.logger.warn("Bot is already running")
+            self.logger.warning("Bot is already running")
             return
 
         self.running = True
-        self.thread = threading.Thread(target=self.__run_loop, daemon=False)
+        self.thread = threading.Thread(target=self._run_loop, daemon=False)
         self.thread.start()
         self.logger.info("Bot started")
 
@@ -209,15 +233,22 @@ class BotRunner:
         self.logger.info("Bot stopped")
 
     def _run_loop(self):
-        while self.running:
-            try:
-                config = BotConfig.get_config()
-
-                self.bot.run_iteration()
-                time.sleep(config.check_interval_seconds)
-            except Exception as e:
-                self.logger.error(f"Error in bot loop: {e}", exc_info=True)
-                time.sleep(5)
+        thresholdSeconds = 15.0
+        lastFullPull = time.monotonic()
+        try:
+            config = BotConfig.get_config()
+            self.bot.run_iteration()
+            now = time.monotonic()
+            if now - lastFullPull >= thresholdSeconds:
+                self.bot.refresh_all_tickers()
+                lastFullPull = now
+            time.sleep(config.check_interval_seconds)
+        except Exception as e:
+            self.logger.error(
+                f"Error in bot loop: {e}",
+                exc_info=True
+            )
+            time.sleep(5)
 
     def is_running(self) -> bool:
         return self.running and self.thread and self.thread.is_alive()
