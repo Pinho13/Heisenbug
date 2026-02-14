@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from finance.views import btc_usd_price
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("btc-usd/", btc_usd_price, name="btc-usd-price"),
 ]
