@@ -99,3 +99,14 @@ class PortfolioSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.currency} - {self.amount} unidades a {self.average_price} cada"
+    
+#user balance para dar track de fundos
+# provavelment asset pool vai embora    
+class UserBalance(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    currency = models.CharField(max_length=10)  # Ex: 'BTC', 'USD'
+    amount = models.DecimalField(max_digits=20, decimal_places=8, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'currency') # Um registo por moeda por user
