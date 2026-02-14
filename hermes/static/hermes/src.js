@@ -129,25 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCurrenciesDisplay();
     }
 
-    function updateTime() {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('pt-PT', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-
-        // Atualizar todos os elementos de tempo
-        document.getElementById('time1').textContent = timeString;
-        document.getElementById('time2').textContent = timeString;
-        document.getElementById('time3').textContent = timeString;
-        document.getElementById('time4').textContent = timeString;
-    }
-
-    // Atualizar a cada segundo
-    updateTime();
-    setInterval(updateTime, 1000);
+    // Clock removed - trades now show real timestamps from the database
 
     // Função para formatar valores monetários
     function formatCurrency(value) {

@@ -43,7 +43,7 @@
             <div class="flex-1 flex items-center justify-center">
                 <span class="text-lg md:text-2xl font-bold">€50 000</span>
             </div>
-            <div class="w-10 h-10 rounded-full border-2 border-[#e8ad3a] bg-[#d4952a]/30 flex items-center justify-center text-sm font-bold text-white">SLB</div>
+            <div class="w-10 h-10 rounded-full border-2 border-[#e8ad3a] bg-[#d4952a]/60 flex items-center justify-center text-sm font-bold text-white">SLB</div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -62,117 +62,45 @@
                     <thead>
                     <tr class="text-slate-400 text-sm">
                         <th class="text-left pb-2">Time</th>
-                        <th class="text-center pb-2">Pair's Symbol</th>
-                        <th class="text-center pb-2">State</th>
-                        <th class="text-center pb-2">Profit (%)</th>
-                        <th class="text-center pb-2">PnL</th>
+                        <th class="text-center pb-2">Pair</th>
+                        <th class="text-center pb-2">Operation</th>
+                        <th class="text-center pb-2">Amount</th>
+                        <th class="text-center pb-2">Price</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
+                    {% for trade in trades %}
                     <tr class="hover:bg-white/5">
                         <td class="py-2">
-                            <div>
-                                <span class="text-sm text-slate-300" id="time1">--:--:--</span>
-                            </div>
+                            <span class="text-sm text-slate-300">{{ trade.timestamp|date:"H:i:s" }}</span>
                         </td>
-                        <td class="py-2 font-medium text-center">USD/BTC</td>
+                        <td class="py-2 font-medium text-center">{{ trade.pair }}</td>
                         <td class="py-2">
-                            <div class="flex items-center justify-center gap-2 text-sm text-slate-300">
+                            <div class="flex items-center justify-center gap-2 text-sm">
+                                {% if trade.operation == "BUY" %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-green-500/10 text-green-400 border border-green-500/20">BUY</span>
+                                {% else %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">SELL</span>
+                                {% endif %}
+                                <span class="text-slate-500">|</span>
+                                {% if trade.status == "EXECUTED" %}
                                 <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
+                                <span class="text-slate-300">{{ trade.status }}</span>
+                                {% else %}
+                                <span class="text-yellow-400">{{ trade.status }}</span>
+                                {% endif %}
                             </div>
                         </td>
-                        <td class="py-2 text-green-400 font-medium text-center">+0.52%</td>
-                        <td class="py-2 text-center">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                                        +109€
-                                    </span>
-                        </td>
+                        <td class="py-2 text-slate-300 text-center">{{ trade.amount }}</td>
+                        <td class="py-2 text-center font-medium">{{ trade.price_at_execution }}</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2">
-                            <div>
-                                <span class="text-sm text-slate-300" id="time2">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-2 font-medium text-center">USD/BTC</td>
-                        <td class="py-2">
-                            <div class="flex items-center justify-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-2 text-red-400 font-medium text-center">-0.52%</td>
-                        <td class="py-2 text-center">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                        -109€
-                                    </span>
-                        </td>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-slate-500">No trades yet</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2">
-                            <div>
-                                <span class="text-sm text-slate-300" id="time3">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-2 font-medium text-center">USD/BTC</td>
-                        <td class="py-2">
-                            <div class="flex items-center justify-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-2 text-green-400 font-medium text-center">+0.52%</td>
-                        <td class="py-2 text-center">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                                        +109€
-                                    </span>
-                        </td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2">
-                            <div>
-                                <span class="text-sm text-slate-300" id="time4">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-2 font-medium text-center">USD/BTC</td>
-                        <td class="py-2">
-                            <div class="flex items-center justify-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-2 text-red-400 font-medium text-center">-0.52%</td>
-                        <td class="py-2 text-center">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                        -109€
-                                    </span>
-                        </td>
-                    </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </section>
@@ -218,47 +146,26 @@
                         <th class="text-left pb-2">Icon</th>
                         <th class="text-center pb-2">Pair's Symbol</th>
                         <th class="text-center pb-2">Name</th>
-                        <th class="text-center pb-2">Daily Change (%)</th>
+                        <th class="text-center pb-2">Bid / Ask</th>
                         <th class="text-center pb-2">Price</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
+                    {% for currency in top_currencies %}
                     <tr class="hover:bg-white/5">
                         <td class="py-2.5">
-                            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-base font-bold shadow-lg">€</div>
+                            <div class="w-8 h-8 rounded-full {{ currency.color }} flex items-center justify-center text-base font-bold shadow-lg">{{ currency.icon }}</div>
                         </td>
-                        <td class="py-2.5 font-semibold text-center">USD/EUR</td>
-                        <td class="py-2.5 text-sm text-slate-400 text-center">United States Dollar / Euro</td>
-                        <td class="py-2.5 text-green-400 font-medium text-center">+0.23%</td>
-                        <td class="py-2.5 text-center font-semibold">$1.08</td>
+                        <td class="py-2.5 font-semibold text-center">{{ currency.symbol }}</td>
+                        <td class="py-2.5 text-sm text-slate-400 text-center">{{ currency.name }}</td>
+                        <td class="py-2.5 text-slate-300 text-sm text-center">{{ currency.bid }}<br/>{{ currency.ask }}</td>
+                        <td class="py-2.5 text-center font-semibold">{{ currency.price }}</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2.5">
-                            <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-base font-bold shadow-lg">$</div>
-                        </td>
-                        <td class="py-2.5 font-semibold text-center">EUR/USD</td>
-                        <td class="py-2.5 text-sm text-slate-400 text-center">Euro / United States Dollar</td>
-                        <td class="py-2.5 text-green-400 font-medium text-center">+0.23%</td>
-                        <td class="py-2.5 text-center font-semibold">$0.93</td>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-slate-500">No price data available</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2.5">
-                            <div class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-base font-bold shadow-lg">₿</div>
-                        </td>
-                        <td class="py-2.5 font-semibold text-center">USD/BTC</td>
-                        <td class="py-2.5 text-sm text-slate-400 text-center">United States Dollar / Bitcoin</td>
-                        <td class="py-2.5 text-green-400 font-medium text-center">+0.23%</td>
-                        <td class="py-2.5 text-center font-semibold">$100,000.00</td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-2.5">
-                            <div class="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-base font-bold shadow-lg">Ξ</div>
-                        </td>
-                        <td class="py-2.5 font-semibold text-center">USD/ETH</td>
-                        <td class="py-2.5 text-sm text-slate-400 text-center">United States Dollar / Ethereum</td>
-                        <td class="py-2.5 text-green-400 font-medium text-center">+0.23%</td>
-                        <td class="py-2.5 text-center font-semibold">$2,000.00</td>
-                    </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </section>
