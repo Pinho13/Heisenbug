@@ -15,11 +15,12 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from finance.views import price_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     # dynamic URL (:fire:)
     path('price/<str:pair>/', price_view, name= 'price-view'),
+    path('', include('principal.urls')),
 ]
