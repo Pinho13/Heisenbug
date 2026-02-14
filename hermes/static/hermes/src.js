@@ -101,10 +101,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!currency) return;
 
             const currencyItem = document.createElement('div');
-            currencyItem.className = 'currency-item flex flex-col items-center gap-2';
+            currencyItem.className = 'currency-item flex flex-col items-center gap-1';
             currencyItem.dataset.symbol = symbol;
             currencyItem.innerHTML = `
-            <div class="w-16 h-16 rounded-full bg-gradient-to-br ${currency.color} flex items-center justify-center text-3xl font-bold shadow-lg cursor-pointer relative group">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-br ${currency.color} flex items-center justify-center text-2xl font-bold shadow-lg cursor-pointer relative group">
                 ${currency.icon}
                 <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-[#ef4444] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,5 +239,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('aimedProfitInput').addEventListener('blur', calculateRisk);
     document.getElementById('amountInput').addEventListener('blur', calculateRisk);
+
+    // Chart tooltip
+    const tooltip = document.getElementById('chartTooltip');
+    const tooltipMonth = document.getElementById('tooltipMonth');
+    const tooltipValue = document.getElementById('tooltipValue');
+    const chartContainer = document.querySelector('.relative.h-72');
+
+    document.querySelectorAll('.chart-point[data-month]').forEach(point => {
+        point.addEventListener('mouseenter', function(e) {
+            tooltipMonth.textContent = this.dataset.month;
+            tooltipValue.textContent = '$' + this.dataset.value;
+
+            const svg = this.closest('svg');
+            const rect = svg.getBoundingClientRect();
+            const containerRect = chartContainer.getBoundingClientRect();
+            const cx = parseFloat(this.getAttribute('cx'));
+            const cy = parseFloat(this.getAttribute('cy'));
+            const viewBox = svg.viewBox.baseVal;
+
+            const x = ((cx - viewBox.x) / viewBox.width) * rect.width;
+            const y = (cy / viewBox.height) * rect.height;
+
+            tooltip.classList.remove('hidden');
+            tooltip.style.left = (x - tooltip.offsetWidth / 2) + 'px';
+            tooltip.style.top = (y - tooltip.offsetHeight - 12) + 'px';
+        });
+
+        point.addEventListener('mouseleave', function() {
+            tooltip.classList.add('hidden');
+        });
+    });
 
 });
