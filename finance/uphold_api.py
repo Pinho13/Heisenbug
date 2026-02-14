@@ -35,6 +35,15 @@ class UpholdAPIHandler:
             print(f"Error fetching tickers: {e}")
             return None
 
+    def get_tickers_batch(self, currency_pairs: list) -> dict:
+        """Fetches tickers for a list of currency pairs."""
+        tickers = {}
+        for pair in currency_pairs:
+            ticker = self.get_ticker(pair)
+            if ticker:
+                tickers[pair] = ticker
+        return tickers
+
     # Place Orders
 
     def place_order(self, currency, amount, operation="buy"):

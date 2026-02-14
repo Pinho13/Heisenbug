@@ -43,21 +43,12 @@ class TradeBot:
         if to_fetch:
             fresh_data = self.api.get_tickers_batch(to_fetch)
             for pair, ticker in fresh_data.items():
-                self.cache.set_price(pair, ticker, ttl_seconds)
-                result[pair] = ticker
-                self._store_price_snapshot(pair, ticker)
+                currency = ticker.get('currency')
+                if currency:
+                    self.cache.set_price(pair, ticker, ttl_seconds)
+                    result[pair] = ticker
+                    self._store_price_snapshot(pair, currency, ticker)
         return result
-
-    def _store_price_snapshot(self, pair: str, ticker: dict):
-        try:
-            PriceSnapshot.objects.create(
-                pair=pair,
-                bid=Decimal(str(ticker.get('bid', 0))),
-                ask=Decimal(str(ticker.get('ask', 0))),
-                last=Decimal(str(ticker.get('last', 0)))
-            )
-        except Exception as e:
-            self.logger.warning(f"Error storing price snapshot: {e}")
 
     def execute_trade(
         self,
@@ -189,19 +180,34 @@ class TradeBot:
         try:
             tickers = self.api.get_all_tickers()
             if not tickers:
-                self.logger.warning("Full thicker refresh returned no data")
+                self.logger.warning("Full ticker refresh returned no data")
                 return
-            for pair, ticker in tickers.items():
-                self._store_price_snapshot(pair, ticker)
+            for ticker in tickers:
+                pair = ticker.get('pair')
+                currency = ticker.get('currency')
+                if pair and currency:
+                    self._store_price_snapshot(pair, currency, ticker)
             self.logger.debug(
                 f"Refreshed {len(tickers)} ticker snapshots"
             )
+            print("the tickers should be in the database now!")
 
         except Exception as e:
             self.logger.warning(
                 f"Failed full ticker refresh: {e}",
                 exc_info=True
             )
+
+    def _store_price_snapshot(self, pair: str, currency: str, ticker: dict):
+        try:
+            PriceSnapshot.objects.create(
+                pair=pair,
+                bid=Decimal(str(ticker.get('bid', 0))),
+                ask=Decimal(str(ticker.get('ask', 0))),
+                currency=currency
+            )
+        except Exception as e:
+            self.logger.warning(f"Error storing price snapshot: {e}")
 
 
 class BotRunner:
@@ -222,8 +228,10 @@ class BotRunner:
             return
 
         self.running = True
-        self.thread = threading.Thread(target=self._run_loop, daemon=False)
-        self.thread.start()
+        self._run_loop()
+        # self.thread = threading.Thread(target=self._run_loop, daemon=False)
+        # print("thread worked..?")
+        # self.thread.start()
         self.logger.info("Bot started")
 
     def stop(self):
@@ -233,16 +241,22 @@ class BotRunner:
         self.logger.info("Bot stopped")
 
     def _run_loop(self):
+        print("this is the side thread?")
         thresholdSeconds = 15.0
         lastFullPull = time.monotonic()
         try:
+            from finance.models import BotConfig
             config = BotConfig.get_config()
-            self.bot.run_iteration()
-            now = time.monotonic()
-            if now - lastFullPull >= thresholdSeconds:
-                self.bot.refresh_all_tickers()
-                lastFullPull = now
-            time.sleep(config.check_interval_seconds)
+            config.is_active = True
+            print(config)
+            while (True):
+                now = time.monotonic()
+                if now - lastFullPull >= thresholdSeconds:
+                    print("trying to fetch tickers")
+                    self.bot.refresh_all_tickers()
+                    lastFullPull = now
+                    time.sleep(config.check_interval_seconds)
+                    self.bot.run_iteration()
         except Exception as e:
             self.logger.error(
                 f"Error in bot loop: {e}",
