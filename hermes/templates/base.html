@@ -250,7 +250,7 @@
                 </div>
 
                 <!--assim ficam postos diretamente no fundo da caixa em questão-->
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-3 gap-3">
 
                     <!-- Aimed Profit -->
                     <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
@@ -263,12 +263,12 @@
                         class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
                         id="aimedProfitDisplay"
                 >
-                    ${{ aimed_profit|default:"4,087" }}
+                    €{{ aimed_profit|default:"0" }}
                 </span>
                             <input
                                     type="text"
                                     id="aimedProfitInput"
-                                    value="{{ aimed_profit|default:'4087' }}"
+                                    value="{{ aimed_profit|default:'0' }}"
                                     class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#8b5cf6]/50 focus:border-[#8b5cf6] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
@@ -285,17 +285,40 @@
                         class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
                         id="amountDisplay"
                 >
-                    ${{ amount|default:"5,506" }}
+                    €{{ amount|default:"0" }}
                 </span>
                             <input
                                     type="text"
                                     id="amountInput"
-                                    value="{{ amount|default:'5506' }}"
+                                    value="{{ amount|default:'0' }}"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Risk -->
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
+                            <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
+                            <span>Amount</span>
+                        </div>
+                        <div class="relative group">
+                <span
+                        class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
+                        id="riskDisplay"
+                >
+                    {{ amount|default:"0" }}%
+                </span>
+                            <input
+                                    type="text"
+                                    id="riskInput"
+                                    value="{{ amount|default:'0' }}"
                                     class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
                 </div>
+
             </aside>
 
             <!-- Top Currencies -->
@@ -466,14 +489,13 @@
         { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', color: 'from-[#a855f7] to-[#7c3aed]' },
     ];
 
-    let selectedCurrencies = []; // Start with no selection
+    let selectedCurrencies = [];
 
     // ========== CURRENCY SEARCH ==========
     const currencySearch = document.getElementById('currencySearch');
     const currencyDropdown = document.getElementById('currencyDropdown');
     const selectedCurrenciesContainer = document.getElementById('selectedCurrencies');
 
-    // Initialize empty container
     selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
 
     currencySearch.addEventListener('input', function(e) {
@@ -484,7 +506,6 @@
             return;
         }
 
-        // Filter currencies
         const results = allCurrencies.filter(currency =>
             currency.symbol.toLowerCase().includes(query) ||
             currency.name.toLowerCase().includes(query)
@@ -496,7 +517,6 @@
             return;
         }
 
-        // Render results
         currencyDropdown.innerHTML = results.map(currency => `
         <div class="p-3 hover:bg-[#1a1a2e] cursor-pointer flex items-center gap-3 currency-result ${selectedCurrencies.includes(currency.symbol) ? 'opacity-50' : ''}"
              data-symbol="${currency.symbol}"
@@ -517,7 +537,6 @@
         currencyDropdown.classList.remove('hidden');
     });
 
-    // Add currency on click
     currencyDropdown.addEventListener('click', function(e) {
         const resultElement = e.target.closest('.currency-result');
         if (!resultElement) return;
@@ -533,23 +552,19 @@
             return;
         }
 
-        // Add to selected
         selectedCurrencies.push(symbol);
         updateCurrenciesDisplay();
 
-        // Clear search
         currencySearch.value = '';
         currencyDropdown.classList.add('hidden');
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {
         if (!currencySearch.contains(e.target) && !currencyDropdown.contains(e.target)) {
             currencyDropdown.classList.add('hidden');
         }
     });
 
-    // Update currencies display
     function updateCurrenciesDisplay() {
         if (selectedCurrencies.length === 0) {
             selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
@@ -579,7 +594,6 @@
 
             selectedCurrenciesContainer.appendChild(currencyItem);
 
-            // Add remove handler
             currencyItem.querySelector('.remove-currency').addEventListener('click', function(e) {
                 e.stopPropagation();
                 removeCurrency(symbol);
@@ -587,13 +601,11 @@
         });
     }
 
-    // Remove currency
     function removeCurrency(symbol) {
         selectedCurrencies = selectedCurrencies.filter(s => s !== symbol);
         updateCurrenciesDisplay();
     }
 
-    // Atualizar o tempo em tempo real
     function updateTime() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('pt-PT', {
@@ -619,7 +631,7 @@
         return '$' + parseInt(value).toLocaleString('en-US');
     }
 
-    // Aimed Profit - input editável
+    // Aimed Profit
     const aimedProfitInput = document.getElementById('aimedProfitInput');
     const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
 
@@ -632,12 +644,9 @@
         const value = e.target.value || '4087';
         e.target.value = value;
         aimedProfitDisplay.textContent = formatCurrency(value);
-
-        // Aqui podes adicionar um AJAX call para guardar no backend
-        // saveToBackend('aimed_profit', value);
     });
 
-    // Amount - input editável
+    // Amount
     const amountInput = document.getElementById('amountInput');
     const amountDisplay = document.getElementById('amountDisplay');
 
@@ -650,46 +659,8 @@
         const value = e.target.value || '5506';
         e.target.value = value;
         amountDisplay.textContent = formatCurrency(value);
-
-        // Aqui podes adicionar um AJAX call para guardar no backend
-        // saveToBackend('amount', value);
     });
 
-    // Opcional: Função para guardar no backend via AJAX
-    /*
-    function saveToBackend(field, value) {
-        fetch('/api/update-settings/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                field: field,
-                value: value
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Saved:', data);
-        });
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    */
 </script>
 </body>
 </html>
