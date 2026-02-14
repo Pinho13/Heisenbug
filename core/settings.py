@@ -9,8 +9,16 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
+import os
+from dotenv import load_dotenv
+
 
 from pathlib import Path
+
+load_dotenv() # Carrega as variáveis do ficheiro .env
+
+UPHOLD_API_KEY = os.getenv('UPHOLD_API_KEY')
+SECRET_KEY_ENV = os.getenv('DJANGO_SECRET_KEY')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,10 +28,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-b4c110pkmbs00flbw+)$#7(s_2-#k7o-ep%!d!@(@e8t3(s0&@'
+SECRET_KEY = SECRET_KEY_ENV or 'django-insecure-b4c110pkmbs00flbw+)$#7(s_2-#k7o-ep%!d!@(@e8t3(s0&@'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG') == 'True' 
 
 ALLOWED_HOSTS = []
 
