@@ -89,3 +89,13 @@ class PriceSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.pair} @ {self.ask} ({self.currency}) em {self.timestamp}"
+
+class PortfolioSnapshot(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE)
+    currency = models.CharField(max_length=20)
+    amount = models.DecimalField(max_digits=20, decimal_places=8)
+    average_price = models.DecimalField(max_digits=20, decimal_places=8)
+
+    def __str__(self):
+        return f"{self.currency} - {self.amount} unidades a {self.average_price} cada"
