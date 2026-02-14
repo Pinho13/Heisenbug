@@ -1,0 +1,17 @@
+{% extends "home.html" %} {% block content %}
+<div class="container">
+    <h1>🤖 Hermes Trading Bot</h1>
+    <hr>
+    
+    <div class="status-card">
+        <h3>Mercado Atual: {{ ticker.symbol }}</h3>
+        <p>Preço Last: <strong>{{ ticker.last }} USD</strong></p>
+        <p>Bid: {{ ticker.bid }} | Ask: {{ ticker.ask }}</p>
+    </div>
+
+    <div class="bot-actions">
+        <h4>Configuração da Pool</h4>
+        <p>Aqui aparecerão as moedas que o bot está a vigiar.</p>
+        </div>
+</div>
+{% endblock %}
