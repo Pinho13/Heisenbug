@@ -26,7 +26,7 @@ class TradeHistory(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     @classmethod
-    def cleanup_old_trades(cls, keep_count=100):
+    def cleanup_old_trades(cls, keep_count=500):
         ids_to_keep = cls.objects.order_by(
             '-timestamp').values_list('id', flat=True)[:keep_count]
         cls.objects.exclude(id__in=ids_to_keep).delete()
