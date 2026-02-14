@@ -28,15 +28,16 @@ class TradeBot:
         self.cache = MarketDataCache()
         self.logger = logger
 
-    def fetch_market_data(
-        self,
-        pairs: List[str],
-        force_refresh: bool = False,
-        ttl_seconds: int = 3
-    ) -> Dict[str, dict]:
-
-        to_fetch = []
+    def fetch_market_data(self, pairs: List[str], ttl_seconds: int = 3) -> Dict[str, dict]:
         result = {}
+        to_fetch = []
+
+        for pair in pairs:
+            cached = self.cache.get_price(pair, ttl_seconds)
+            if cached:
+                result[pair] = cached
+            else:
+                to_fetch.append(pair)
 
         if to_fetch:
             fresh_data = self.api.get_tickers_batch(to_fetch)
@@ -44,20 +45,18 @@ class TradeBot:
                 self.cache.set_price(pair, ticker, ttl_seconds)
                 result[pair] = ticker
                 self._store_price_snapshot(pair, ticker)
-
         return result
 
     def _store_price_snapshot(self, pair: str, ticker: dict):
-        """Store prices as snapshots in DB for history"""
         try:
-            snapshot, _ = PriceSnapshot.objects.get_or_create(pair=pair)
-            snapshot.bid = Decimal(str(ticker.get('bid', 0)))
-            snapshot.ask = Decimal(str(ticker.get('ask', 0)))
-            snapshot.last = Decimal(str(ticker.get('last', 0)))
-            snapshot.save()
+            PriceSnapshot.objects.create(
+                pair=pair,
+                bid=Decimal(str(ticker.get('bid', 0))),
+                ask=Decimal(str(ticker.get('ask', 0))),
+                last=Decimal(str(ticker.get('last', 0)))
+            )
         except Exception as e:
             self.logger.warning(f"Error storing price snapshot: {e}")
-
     def execute_trade(
         self,
         decision: TradeDecision,

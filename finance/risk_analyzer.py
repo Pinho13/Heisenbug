@@ -1,6 +1,8 @@
 from decimal import Decimal
 import statistics
 
+from finance.models import PriceSnapshot
+
 class TradeDecision:
     def __init__(self, from_pair, to_pair, amount, from_price, to_price, confidence, risk_score, volatility, reason):
         self.from_pair = from_pair
@@ -24,8 +26,15 @@ class RiskAnalyzer:
     def add_price(self, price: Decimal):
         pass
 
-    def calculate_volatility(self) -> float:
-        return 0.02  
+    def calculate_volatility(self, pair_symbol) -> float:
+        snapshots = PriceSnapshot.objects.filter(pair=pair_symbol).order_by('-timestamp')[:self.window]
+        prices = [float(s.last) for s in snapshots]
+
+        if len(prices) < 2:
+            return 0.05 
+
+        return statistics.stdev(prices) / statistics.mean(prices)
+    
     def calculate_risk_score(self, expected_return, volatility, confidence) -> float:
         return (volatility * 0.5) + (1 - confidence) * 0.5
 

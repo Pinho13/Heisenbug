@@ -14,17 +14,20 @@ class AssetPool(models.Model):
 
 
 class TradeHistory(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL,
-                             on_delete=models.CASCADE)
-    pair = models.CharField(max_length=20)
-    operation = models.CharField(max_length=10)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    pair = models.CharField(max_length=20) 
+    operation = models.CharField(max_length=10) 
     amount = models.DecimalField(max_digits=20, decimal_places=8)
     price_at_execution = models.DecimalField(max_digits=20, decimal_places=8)
+    status = models.CharField(max_length=20, default="EXECUTED")
+    confidence_score = models.FloatField(null=True)
+    reason = models.TextField(null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
-    profit_loss = models.FloatField(null=True, blank=True)
 
-    def __str__(self):
-        return f"{self.operation} {self.pair} - {self.timestamp}"
+    @classmethod
+    def cleanup_old_trades(cls, keep_count=100):
+        ids_to_keep = cls.objects.order_by('-timestamp').values_list('id', flat=True)[:keep_count]
+        cls.objects.exclude(id__in=ids_to_keep).delete()
 
 class BotConfig(models.Model):
     # status
