@@ -129,8 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCurrenciesDisplay();
     }
 
-    // Clock removed - trades now show real timestamps from the database
-
     // Função para formatar valores monetários
     function formatCurrency(value) {
          return '€' + parseInt(value).toLocaleString('pt-PT');
