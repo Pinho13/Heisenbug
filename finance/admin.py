@@ -9,4 +9,4 @@ class AssetPoolAdmin(admin.ModelAdmin):
 @admin.register(TradeHistory)
 class TradeHistoryAdmin(admin.ModelAdmin):
     list_display = ('pair', 'operation', 'amount', 'price_at_execution', 'timestamp')
-    readonly_fields = ('timestamp',) # Impede que alteres a hora manualmente
+    readonly_fields = ('timestamp',) 
