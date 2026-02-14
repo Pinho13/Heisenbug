@@ -195,51 +195,82 @@
             </section>
 
             <!-- Currency -->
-            <aside class="bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
+            <aside class="bg-[#1a1a2e] rounded-2xl p-6 border border-[#1e293b]/50 flex flex-col">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-semibold">Currency</h2>
+
                     <div class="relative">
-                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        <svg
+                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b]"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                        >
+                            <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            ></path>
                         </svg>
-                        <input type="text" placeholder="Search here..." class="bg-[#0f0f23] border border-slate-700/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-500 focus:outline-none w-36">
+                        <input
+                                type="text"
+                                placeholder="Search here..."
+                                class="bg-[#0f0f23] border border-[#334155]/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-[#64748b] focus:outline-none w-36"
+                        >
                     </div>
                 </div>
 
-                <div class="flex justify-center mb-8">
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-4xl font-bold shadow-lg">
+                <!--tem que ser alterado, porque podem ser escolhidas mais currencies-->
+                <div class="flex-1 flex items-center justify-center">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-4xl font-bold shadow-lg">
                         ₿
                     </div>
                 </div>
 
+                <!--assim ficam postos diretamente no fundo da caixa em questão-->
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
-                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                            <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+
+                    <!-- Aimed Profit -->
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
+                            <div class="w-2 h-2 rounded-full bg-[#8b5cf6]"></div>
                             <span>Aimed Profit</span>
                         </div>
                         <div class="relative group">
-                            <span class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity" id="aimedProfitDisplay">$4,087</span>
+                <span
+                        class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
+                        id="aimedProfitDisplay"
+                >
+                    ${{ aimed_profit|default:"4,087" }}
+                </span>
                             <input
                                     type="text"
                                     id="aimedProfitInput"
-                                    value="4087"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-purple-500/50 focus:border-purple-500 outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
+                                    value="{{ aimed_profit|default:'4087' }}"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#8b5cf6]/50 focus:border-[#8b5cf6] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
-                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+
+                    <!-- Amount -->
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
+                            <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
                             <span>Amount</span>
                         </div>
                         <div class="relative group">
-                            <span class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity" id="amountDisplay">$5,506</span>
+                <span
+                        class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
+                        id="amountDisplay"
+                >
+                    ${{ amount|default:"5,506" }}
+                </span>
                             <input
                                     type="text"
                                     id="amountInput"
-                                    value="5506"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-red-500/50 focus:border-red-500 outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
+                                    value="{{ amount|default:'5506' }}"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
