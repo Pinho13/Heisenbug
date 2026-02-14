@@ -16,7 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from finance.views import price_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # dynamic URL (:fire:)
+    path('price/<str:pair>/', price_view, name= 'price-view'),
 ]
