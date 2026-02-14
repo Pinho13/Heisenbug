@@ -53,3 +53,23 @@ class BotConfig(models.Model):
 
     def __str__(self):
         return f"Configuração Global (Ativo: {self.is_active})"
+
+class TradingPair(models.Model):
+    pair_symbol = models.CharField(max_length=20, unique=True, help_text="Ex: BTC-USD")
+    is_enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.pair_symbol} (Ativo: {self.is_enabled})"
+
+class PriceSnapshot(models.Model):
+    pair = models.CharField(max_length=20, db_index=True)
+    bid = models.DecimalField(max_digits=20, decimal_places=8)
+    ask = models.DecimalField(max_digits=20, decimal_places=8)
+    last = models.DecimalField(max_digits=20, decimal_places=8)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        get_latest_by = 'timestamp'
+
+    def __str__(self):
+        return f"{self.pair} @ {self.last} em {self.timestamp}"
