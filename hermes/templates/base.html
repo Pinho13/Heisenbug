@@ -466,12 +466,15 @@
         { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', color: 'from-[#a855f7] to-[#7c3aed]' },
     ];
 
-    let selectedCurrencies = []; // Default selection
+    let selectedCurrencies = []; // Start with no selection
 
     // ========== CURRENCY SEARCH ==========
     const currencySearch = document.getElementById('currencySearch');
     const currencyDropdown = document.getElementById('currencyDropdown');
     const selectedCurrenciesContainer = document.getElementById('selectedCurrencies');
+
+    // Initialize empty container
+    selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
 
     currencySearch.addEventListener('input', function(e) {
         const query = e.target.value.toLowerCase().trim();
@@ -532,7 +535,7 @@
 
         // Add to selected
         selectedCurrencies.push(symbol);
-        addCurrencyIcon(symbol, icon, color);
+        updateCurrenciesDisplay();
 
         // Clear search
         currencySearch.value = '';
@@ -546,39 +549,48 @@
         }
     });
 
-    // Add currency icon to display
-    function addCurrencyIcon(symbol, icon, color) {
-        const currencyItem = document.createElement('div');
-        currencyItem.className = 'currency-item flex flex-col items-center gap-2';
-        currencyItem.dataset.symbol = symbol;
-        currencyItem.innerHTML = `
-        <div class="w-16 h-16 rounded-full bg-gradient-to-br ${color} flex items-center justify-center text-3xl font-bold shadow-lg cursor-pointer relative group">
-            ${icon}
-            <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-[#ef4444] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <span class="text-xs text-[#94a3b8]">${symbol}</span>
-    `;
+    // Update currencies display
+    function updateCurrenciesDisplay() {
+        if (selectedCurrencies.length === 0) {
+            selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
+            return;
+        }
 
-        selectedCurrenciesContainer.appendChild(currencyItem);
+        selectedCurrenciesContainer.innerHTML = '';
 
-        // Add remove handler
-        currencyItem.querySelector('.remove-currency').addEventListener('click', function(e) {
-            e.stopPropagation();
-            removeCurrency(symbol);
+        selectedCurrencies.forEach(symbol => {
+            const currency = allCurrencies.find(c => c.symbol === symbol);
+            if (!currency) return;
+
+            const currencyItem = document.createElement('div');
+            currencyItem.className = 'currency-item flex flex-col items-center gap-2';
+            currencyItem.dataset.symbol = symbol;
+            currencyItem.innerHTML = `
+            <div class="w-16 h-16 rounded-full bg-gradient-to-br ${currency.color} flex items-center justify-center text-3xl font-bold shadow-lg cursor-pointer relative group">
+                ${currency.icon}
+                <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-[#ef4444] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <span class="text-xs text-[#94a3b8]">${symbol}</span>
+        `;
+
+            selectedCurrenciesContainer.appendChild(currencyItem);
+
+            // Add remove handler
+            currencyItem.querySelector('.remove-currency').addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeCurrency(symbol);
+            });
         });
     }
 
     // Remove currency
     function removeCurrency(symbol) {
         selectedCurrencies = selectedCurrencies.filter(s => s !== symbol);
-        const currencyItem = selectedCurrenciesContainer.querySelector(`[data-symbol="${symbol}"]`);
-        if (currencyItem) {
-            currencyItem.remove();
-        }
+        updateCurrenciesDisplay();
     }
 
     // Atualizar o tempo em tempo real
