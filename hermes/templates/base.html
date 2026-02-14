@@ -253,12 +253,12 @@
                 <div class="grid grid-cols-3 gap-3">
 
                     <!-- Aimed Profit -->
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50 flex flex-col justify-between">
                         <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
                             <div class="w-2 h-2 rounded-full bg-[#8b5cf6]"></div>
                             <span>Aimed Profit</span>
                         </div>
-                        <div class="relative group">
+                        <div class="relative group mt-auto">
                 <span
                         class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
                         id="aimedProfitDisplay"
@@ -275,12 +275,12 @@
                     </div>
 
                     <!-- Amount -->
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50 flex flex-col justify-between">
                         <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
                             <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
                             <span>Amount</span>
                         </div>
-                        <div class="relative group">
+                        <div class="relative group mt-auto">
                 <span
                         class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
                         id="amountDisplay"
@@ -297,12 +297,12 @@
                     </div>
 
                     <!-- Risk -->
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50">
+                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-[#1e293b]/50 flex flex-col justify-between">
                         <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-2">
                             <div class="w-2 h-2 rounded-full bg-[#feb002]"></div>
                             <span>Risk</span>
                         </div>
-                        <div class="relative">
+                        <div class="relative mt-auto">
                             <span class="text-lg font-bold" id="riskDisplay">0%</span>
 
                             <input
@@ -633,30 +633,48 @@
     const aimedProfitInput = document.getElementById('aimedProfitInput');
     const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
 
+    aimedProfitInput.addEventListener('focus', function() {
+        aimedProfitDisplay.style.opacity = '0';
+    });
+
     aimedProfitInput.addEventListener('input', function(e) {
         const value = e.target.value.replace(/[^0-9]/g, '');
         e.target.value = value;
+    });
+
+    aimedProfitInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') e.target.blur();
     });
 
     aimedProfitInput.addEventListener('blur', function(e) {
         const value = e.target.value || '0';
         e.target.value = value;
         aimedProfitDisplay.textContent = formatCurrency(value);
+        aimedProfitDisplay.style.opacity = '';
     });
 
     // Amount
     const amountInput = document.getElementById('amountInput');
     const amountDisplay = document.getElementById('amountDisplay');
 
+    amountInput.addEventListener('focus', function() {
+        amountDisplay.style.opacity = '0';
+    });
+
     amountInput.addEventListener('input', function(e) {
         const value = e.target.value.replace(/[^0-9]/g, '');
         e.target.value = value;
+    });
+
+    amountInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') e.target.blur();
     });
 
     amountInput.addEventListener('blur', function(e) {
         const value = e.target.value || '0';
         e.target.value = value;
         amountDisplay.textContent = formatCurrency(value);
+        amountDisplay.style.opacity = '';
     });
 
     // Risk
