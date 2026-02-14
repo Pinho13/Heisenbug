@@ -17,16 +17,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const currencyDropdown = document.getElementById('currencyDropdown');
     const selectedCurrenciesContainer = document.getElementById('selectedCurrencies');
 
-    selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
+    selectedCurrenciesContainer.innerHTML = '<div class="w-full text-center text-[#64748b] text-sm">No currencies selected</div>';
 
-    currencySearch.addEventListener('input', function(e) {
-        const query = e.target.value.toLowerCase().trim();
-
-        if (query === '') {
-            currencyDropdown.classList.add('hidden');
-            return;
-        }
-
+    function showDropdown(query) {
         const results = allCurrencies.filter(currency =>
             currency.symbol.toLowerCase().includes(query) ||
             currency.name.toLowerCase().includes(query)
@@ -56,6 +49,15 @@ document.addEventListener('DOMContentLoaded', function() {
     `).join('');
 
         currencyDropdown.classList.remove('hidden');
+    }
+
+    currencySearch.addEventListener('focus', function() {
+        showDropdown('');
+    });
+
+    currencySearch.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        showDropdown(query);
     });
 
     currencyDropdown.addEventListener('click', function(e) {
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateCurrenciesDisplay() {
         if (selectedCurrencies.length === 0) {
-            selectedCurrenciesContainer.innerHTML = '<div class="col-span-2 text-center text-[#64748b] text-sm">No currencies selected</div>';
+            selectedCurrenciesContainer.innerHTML = '<div class="w-full text-center text-[#64748b] text-sm">No currencies selected</div>';
             return;
         }
 
@@ -156,30 +158,64 @@ document.addEventListener('DOMContentLoaded', function() {
     const aimedProfitInput = document.getElementById('aimedProfitInput');
     const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
 
+    let aimedProfitPrev = aimedProfitInput.value;
+
+    document.getElementById('aimedProfitWrapper').addEventListener('click', function() {
+        aimedProfitInput.focus();
+    });
+
+    aimedProfitInput.addEventListener('focus', function() {
+        aimedProfitPrev = aimedProfitInput.value;
+        aimedProfitDisplay.style.opacity = '0';
+        aimedProfitInput.value = '';
+    });
+
     aimedProfitInput.addEventListener('input', function(e) {
         const value = e.target.value.replace(/[^0-9]/g, '');
         e.target.value = value;
     });
 
+    aimedProfitInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') e.target.blur();
+    });
+
     aimedProfitInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '0';
+        const value = e.target.value || aimedProfitPrev;
         e.target.value = value;
         aimedProfitDisplay.textContent = formatCurrency(value);
+        aimedProfitDisplay.style.opacity = '';
     });
 
     // Amount
     const amountInput = document.getElementById('amountInput');
     const amountDisplay = document.getElementById('amountDisplay');
 
+    let amountPrev = amountInput.value;
+
+    document.getElementById('amountWrapper').addEventListener('click', function() {
+        amountInput.focus();
+    });
+
+    amountInput.addEventListener('focus', function() {
+        amountPrev = amountInput.value;
+        amountDisplay.style.opacity = '0';
+        amountInput.value = '';
+    });
+
     amountInput.addEventListener('input', function(e) {
         const value = e.target.value.replace(/[^0-9]/g, '');
         e.target.value = value;
     });
 
+    amountInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') e.target.blur();
+    });
+
     amountInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '0';
+        const value = e.target.value || amountPrev;
         e.target.value = value;
         amountDisplay.textContent = formatCurrency(value);
+        amountDisplay.style.opacity = '';
     });
 
     // Risk
@@ -196,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             riskValue = (profit / amount) * 100;
         }
 
-        const formattedRisk = riskValue.toFixed(2);
+        const formattedRisk = riskValue === 0 ? '0' : riskValue.toFixed(2);
         if (riskInput) riskInput.value = formattedRisk;
         if (riskDisplay) riskDisplay.textContent = formattedRisk + '%';
     }

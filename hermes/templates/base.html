@@ -225,7 +225,7 @@
                         >
 
                         <!-- Dropdown Results -->
-                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-[#0f0f23] border border-[#334155]/50 rounded-lg shadow-lg z-20 currency-dropdown">
+                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-[#0f0f23] border border-[#334155]/50 rounded-lg shadow-lg z-20 currency-dropdown max-h-[156px] overflow-y-auto">
                             <!-- Results will be populated by JavaScript -->
                         </div>
                     </div>
@@ -233,7 +233,7 @@
 
                 <!-- Selected Currencies Icons (Grid Layout) -->
                 <div class="flex-1 flex items-center justify-center">
-                    <div id="selectedCurrencies" class="grid grid-cols-2 gap-4">
+                    <div id="selectedCurrencies" class="flex flex-wrap justify-center gap-4">
                         <!-- Default: Bitcoin -->
                         <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
                             <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-3xl font-bold shadow-lg cursor-pointer relative group">
@@ -258,9 +258,9 @@
                             <div class="w-2 h-2 rounded-full bg-[#8b5cf6]"></div>
                             <span>Aimed Profit</span>
                         </div>
-                        <div class="relative group mt-auto">
+                        <div class="relative mt-auto cursor-pointer" id="aimedProfitWrapper">
                 <span
-                        class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
+                        class="text-lg font-bold transition-opacity"
                         id="aimedProfitDisplay"
                 >
                     €{{ aimed_profit|default:"0" }}
@@ -269,7 +269,7 @@
                                     type="text"
                                     id="aimedProfitInput"
                                     value="{{ aimed_profit|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#8b5cf6]/50 focus:border-[#8b5cf6] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#8b5cf6]/50 focus:border-[#8b5cf6] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
@@ -280,9 +280,9 @@
                             <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
                             <span>Amount</span>
                         </div>
-                        <div class="relative group mt-auto">
+                        <div class="relative mt-auto cursor-pointer" id="amountWrapper">
                 <span
-                        class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity"
+                        class="text-lg font-bold transition-opacity"
                         id="amountDisplay"
                 >
                     €{{ amount|default:"0" }}
@@ -291,7 +291,7 @@
                                     type="text"
                                     id="amountInput"
                                     value="{{ amount|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
