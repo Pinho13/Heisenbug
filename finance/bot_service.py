@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import Optional, Dict, List
 import threading
@@ -22,41 +23,32 @@ class TradeBot:
     - Log decision
     """
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.api = UpholdAPIHandler(api_key)
+    def __init__(self):
+        self.api = UpholdAPIHandler()
         self.optimizer = PortfolioOptimizer(self.api)
         self.cache = MarketDataCache()
         self.logger = logger
 
-    def fetch_market_data(
-        self,
-        pairs: List[str],
-        force_refresh: bool = False,
-        ttl_seconds: int = 3
-    ) -> Dict[str, dict]:
-
-        to_fetch = []
+    def fetch_market_data(self, pairs: List[str], ttl_seconds: int = 3) -> Dict[str, dict]:
         result = {}
+        to_fetch = []
+
+        for pair in pairs:
+            cached = self.cache.get_price(pair, ttl_seconds)
+            if cached:
+                result[pair] = cached
+            else:
+                to_fetch.append(pair)
 
         if to_fetch:
             fresh_data = self.api.get_tickers_batch(to_fetch)
             for pair, ticker in fresh_data.items():
-                self.cache.set_price(pair, ticker, ttl_seconds)
-                result[pair] = ticker
-                self._store_price_snapshot(pair, ticker)
-
+                currency = ticker.get('currency')
+                if currency:
+                    self.cache.set_price(pair, ticker, ttl_seconds)
+                    result[pair] = ticker
+                    self._store_price_snapshot(pair, currency, ticker)
         return result
-
-    def _store_price_snapshot(self, pair: str, ticker: dict):
-        """Store prices as snapshots in DB for history"""
-        try:
-            snapshot, _ = PriceSnapshot.objects.get_or_create(pair=pair)
-            snapshot.bid = Decimal(str(ticker.get('bid', 0)))
-            snapshot.ask = Decimal(str(ticker.get('ask', 0)))
-            snapshot.last = Decimal(str(ticker.get('last', 0)))
-            snapshot.save()
-        except Exception as e:
-            self.logger.warning(f"Error storing price snapshot: {e}")
 
     def execute_trade(
         self,
@@ -98,6 +90,7 @@ class TradeBot:
         except Exception as e:
             self.logger.error(f"Failed to execute trade: {e}")
             TradeHistory.objects.create(
+                from_pair=decision.from_pair,
                 to_pair=decision.to_pair,
                 decision="BUY",
                 status="FAILED",
@@ -183,23 +176,60 @@ class TradeBot:
                               e}", exc_info=True)
             return None
 
+    def refresh_all_tickers(self) -> None:
+        try:
+            tickers = self.api.get_all_tickers()
+            if not tickers:
+                self.logger.warning("Full ticker refresh returned no data")
+                return
+            for ticker in tickers:
+                pair = ticker.get('pair')
+                currency = ticker.get('currency')
+                if pair and currency:
+                    self._store_price_snapshot(pair, currency, ticker)
+            self.logger.debug(
+                f"Refreshed {len(tickers)} ticker snapshots"
+            )
+            print("the tickers should be in the database now!")
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed full ticker refresh: {e}",
+                exc_info=True
+            )
+
+    def _store_price_snapshot(self, pair: str, currency: str, ticker: dict):
+        try:
+            PriceSnapshot.objects.create(
+                pair=pair,
+                bid=Decimal(str(ticker.get('bid', 0))),
+                ask=Decimal(str(ticker.get('ask', 0))),
+                currency=currency
+            )
+        except Exception as e:
+            self.logger.warning(f"Error storing price snapshot: {e}")
+
 
 class BotRunner:
     """Manages bot execution loop."""
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.bot = TradeBot(api_key)
+    def __init__(self):
+        self.bot = TradeBot()
         self.running = False
         self.thread = None
         self.logger = logger
+        # threads!
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.refreshed_future = None
 
     def start(self):
         if self.running:
-            self.logger.warn("Bot is already running")
+            self.logger.warning("Bot is already running")
             return
 
         self.running = True
-        self.thread = threading.Thread(target=self.__run_loop, daemon=False)
+        self._run_loop()
+        self.thread = threading.Thread(target=self._run_loop, daemon=False)
         self.thread.start()
         self.logger.info("Bot started")
 
@@ -210,15 +240,28 @@ class BotRunner:
         self.logger.info("Bot stopped")
 
     def _run_loop(self):
-        while self.running:
-            try:
-                config = BotConfig.get_config()
-
-                self.bot.run_iteration()
-                time.sleep(config.check_interval_seconds)
-            except Exception as e:
-                self.logger.error(f"Error in bot loop: {e}", exc_info=True)
-                time.sleep(5)
+        print("this is the side thread?")
+        thresholdSeconds = 15.0
+        lastFullPull = time.monotonic()
+        try:
+            from finance.models import BotConfig
+            config = BotConfig.get_config()
+            config.is_active = True
+            print(config)
+            while (True):
+                now = time.monotonic()
+                if now - lastFullPull >= thresholdSeconds:
+                    print("trying to fetch tickers")
+                    self.bot.refresh_all_tickers()
+                    lastFullPull = now
+                    time.sleep(config.check_interval_seconds)
+                    self.bot.run_iteration()
+        except Exception as e:
+            self.logger.error(
+                f"Error in bot loop: {e}",
+                exc_info=True
+            )
+            time.sleep(5)
 
     def is_running(self) -> bool:
         return self.running and self.thread and self.thread.is_alive()

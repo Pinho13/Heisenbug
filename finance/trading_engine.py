@@ -3,7 +3,6 @@ from typing import List, Dict, Tuple, Optional
 from .risk_analyzer import RiskAnalyzer, TradeDecision
 from .uphold_api import UpholdAPIHandler, PortfolioSnapshot
 from .cache import MarketDataCache
-import math
 
 
 class PortfolioOptimizer:
