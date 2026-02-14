@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'principal',
+    'tailwind',
+    'hermes',
+    'finance',
 ]
 
 MIDDLEWARE = [
@@ -117,3 +120,4 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+TAILWIND_APP_NAME = "hermes"
