@@ -81,8 +81,30 @@
         .badge:active, span.clickable:active {
             transform: scale(0.95);
         }
+        
+        /* Falling animation on page load */
+        @keyframes fallInPlace {
+            0% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0px);
+            }
+        }
+        
+        .fall-in-1 { animation: fallInPlace 0.6s ease-out 0.1s forwards; }
+        .fall-in-2 { animation: fallInPlace 0.6s ease-out 0.2s forwards; }
+        .fall-in-3 { animation: fallInPlace 0.6s ease-out 0.3s forwards; }
+        .fall-in-4 { animation: fallInPlace 0.6s ease-out 0.4s forwards; }
+        .fall-in-5 { animation: fallInPlace 0.6s ease-out 0.5s forwards; }
+        
+        body {
+            background: linear-gradient(to bottom right, #0a0a15 0%, #0f0f23 30%, #1a1a2e 100%) !important;
+            color: white;
+        }
     </style>
-</head>
 <body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
 <div class="flex min-h-screen flex-col md:flex-row">
 
@@ -90,7 +112,7 @@
     <main class="flex-1 p-4 md:p-8 w-full">
 
         <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
+        <header class="fall-in-1 flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
             <!-- Logo and Site Name -->
             <div class="flex items-center gap-3">
                 <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-10 h-10 md:w-12 md:h-12">
@@ -98,14 +120,6 @@
                     <h1 class="text-2xl md:text-3xl font-bold gradient-gold bg-clip-text text-transparent">Hermes</h1>
                     <p class="text-xs text-slate-400">Trading Dashboard</p>
                 </div>
-            </div>
-
-            <!-- Search and User -->
-            <div class="relative flex-1 max-w-xs mx-auto md:mx-0">
-                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <input type="text" placeholder="Search currencies..." class="w-full glass-effect border border-slate-700/50 rounded-xl px-4 py-3 pl-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e8ad3a]/50 transition-all">
             </div>
 
             <!-- Portfolio and User -->
@@ -121,7 +135,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             <!-- Today's Trades -->
-            <section class="col-span-1 lg:col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 overflow-scroll card-hover">
+            <section class="fall-in-2 col-span-1 lg:col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 overflow-scroll card-hover">
                 <h2 class="text-xl font-bold mb-4">Recent Trades</h2>
                 <table class="w-full table-fixed">
                     <colgroup>
@@ -178,7 +192,7 @@
             </section>
 
             <!-- Earnings -->
-            <section class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+            <section class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
                 <h2 class="text-xl font-bold mb-3">Total Earnings</h2>
                 <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">$6,078.76</div>
                 <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">↑ 48%</span> vs last month</p>
@@ -203,7 +217,7 @@
             </section>
 
             <!-- Top Currencies -->
-            <section class="col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+            <section class="fall-in-3 col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
                 <h2 class="text-xl font-bold mb-4">Market Rates</h2>
                 <table class="w-full table-fixed">
                     <colgroup>
@@ -367,7 +381,7 @@
             </aside>
 
             <!-- History -->
-            <section class="col-span-3 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+            <section class="fall-in-5 col-span-3 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
                 <h2 class="text-xl font-bold mb-6">Profit Trend</h2>
                 <div class="relative h-72">
                     <svg class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
