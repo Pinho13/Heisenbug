@@ -172,6 +172,16 @@ def home(request):
     
     risk_level = max(0, min(100, risk_level))  # Final clamp
 
+    # Calculate portfolio value
+    from django.conf import settings
+    try:
+        initial_balance = settings.INITIAL_PORTFOLIO_BALANCE
+        portfolio_value = initial_balance + total_profit
+        portfolio_value = max(0, portfolio_value)  # Don't show negative
+    except Exception as e:
+        logger.error(f"Error calculating portfolio value: {e}")
+        portfolio_value = 10000 + total_profit
+
     context = {
         'top_currencies': top_currencies,
         'trades': trades,
@@ -181,6 +191,7 @@ def home(request):
         'win_rate': f'{win_rate:.1f}',
         'total_trades': total_trades,
         'risk_level': f'{min(risk_level, 100):.1f}',
+        'portfolio_value': f'{portfolio_value:,.2f}',
     }
 
     return render(request, 'base.html', context)
@@ -508,32 +519,20 @@ def get_dashboard_metrics(request):
         
         win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
         
-        # Get portfolio value from Uphold API
+        # Calculate portfolio value from local data (trades + starting balance)
         portfolio_value = 0
         try:
-            api = UpholdAPIHandler()
-            portfolio = api.get_portfolio()
-            holdings = portfolio.get_all_holdings()
+            from django.conf import settings
+            initial_balance = settings.INITIAL_PORTFOLIO_BALANCE
             
-            # Get current prices for all holdings
-            all_tickers = api.get_all_tickers()
+            # Calculate current portfolio value from trades
+            # Add all profits/losses to initial balance
+            current_balance = initial_balance + total_profit
+            portfolio_value = max(0, current_balance)  # Don't show negative
             
-            # Calculate portfolio value in USD
-            for currency, balance in holdings.items():
-                if balance > 0:
-                    # Try to find ticker for this currency
-                    ticker_key = f"{currency}-USD"
-                    if ticker_key in all_tickers:
-                        try:
-                            mid_price = float(all_tickers[ticker_key]['mid'])
-                            portfolio_value += float(balance) * mid_price
-                        except (ValueError, TypeError, KeyError):
-                            pass
-                    elif currency == 'USD':
-                        portfolio_value += float(balance)
         except Exception as e:
-            logger.debug(f"Error fetching portfolio value: {e}")
-            portfolio_value = 0
+            logger.debug(f"Error calculating portfolio value: {e}")
+            portfolio_value = 10000 + total_profit  # Fallback
         
         # Calculate risk level (same complex calculation as home view)
         risk_level = 0

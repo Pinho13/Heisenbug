@@ -19,6 +19,7 @@ load_dotenv() # Carrega as variáveis do ficheiro .env
 
 UPHOLD_API_KEY = os.getenv('UPHOLD_API_KEY')
 SECRET_KEY_ENV = os.getenv('DJANGO_SECRET_KEY')
+INITIAL_PORTFOLIO_BALANCE = float(os.getenv('INITIAL_PORTFOLIO_BALANCE', 10000))  # Default €10,000
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
