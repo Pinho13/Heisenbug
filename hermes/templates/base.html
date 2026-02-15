@@ -24,8 +24,8 @@
 
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
-            <!-- Logo and Site Name -->
-            <div class="flex items-center gap-3">
+            <!-- Logo and Site Name - Clickable -->
+            <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onclick="window.location.href='/'">
                 <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-10 h-10 md:w-12 md:h-12">
                 <div class="flex flex-col">
                     <h1 class="text-2xl md:text-3xl font-bold gradient-gold bg-clip-text text-transparent">Hermes</h1>

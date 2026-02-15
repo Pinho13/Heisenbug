@@ -19,6 +19,10 @@ CURRENCIES = [
 ]
 
 
+def splash(request):
+    return render(request, 'hermes/splash.html')
+
+
 def home(request):
     api = UpholdAPIHandler()
 

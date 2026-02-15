@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hermes - Trading Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-20px) scale(1.05); }
+        }
+        
+        @keyframes nameGlow {
+            0%, 100% { text-shadow: 0 0 10px rgba(232, 173, 58, 0.3); }
+            50% { text-shadow: 0 0 30px rgba(232, 173, 58, 0.8), 0 0 60px rgba(232, 173, 58, 0.4); }
+        }
+        
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0px); }
+        }
+        
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(232, 173, 58, 0.7); }
+            70% { box-shadow: 0 0 0 30px rgba(232, 173, 58, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(232, 173, 58, 0); }
+        }
+        
+        .splash-container {
+            background: linear-gradient(135deg, #0a0a15 0%, #0f0f23 50%, #1a1a2e 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .splash-container::before {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(232, 173, 58, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -100px;
+            left: -100px;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .splash-container::after {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(212, 149, 42, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -150px;
+            right: -150px;
+            animation: float 8s ease-in-out infinite reverse;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-50px); }
+        }
+        
+        .splash-content {
+            position: relative;
+            z-index: 10;
+        }
+        
+        .logo-wrapper {
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+        
+        .splash-title {
+            animation: nameGlow 3s ease-in-out infinite;
+        }
+        
+        .splash-subtitle {
+            animation: fadeInUp 1s ease-out 0.5s both;
+        }
+        
+        .click-prompt {
+            animation: fadeInUp 1s ease-out 1s both;
+        }
+        
+        .pulse-button {
+            animation: pulse-ring 2s infinite;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .pulse-button:hover {
+            transform: scale(1.1);
+        }
+        
+        .pulse-button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="splash-container min-h-screen flex items-center justify-center">
+    <div class="splash-content text-center px-4">
+        <!-- Logo -->
+        <div class="logo-wrapper mb-8 flex justify-center">
+            <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-32 h-32 md:w-48 md:h-48 drop-shadow-2xl">
+        </div>
+        
+        <!-- Title -->
+        <h1 class="splash-title text-4xl md:text-6xl font-black mb-4">
+            <span class="bg-gradient-to-r from-[#e8ad3a] to-[#d4952a] bg-clip-text text-transparent">Hermes</span>
+        </h1>
+        
+        <!-- Subtitle -->
+        <p class="splash-subtitle text-slate-400 text-lg md:text-xl mb-16">Trading Dashboard</p>
+        
+        <!-- Click to continue -->
+        <div class="click-prompt">
+            <button onclick="window.location.href='/home/'" class="pulse-button relative w-20 h-20 md:w-24 md:h-24 mx-auto">
+                <div class="absolute inset-0 bg-gradient-to-r from-[#e8ad3a] to-[#d4952a] rounded-full flex items-center justify-center group">
+                    <div class="text-3xl md:text-4xl group-hover:scale-110 transition-transform">↓</div>
+                </div>
+            </button>
+            <p class="text-slate-500 text-sm mt-6">Click to start</p>
+        </div>
+    </div>
+</body>
+</html>
