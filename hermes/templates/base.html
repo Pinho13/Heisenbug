@@ -11,9 +11,76 @@
         body { font-family: 'Inter', sans-serif; }
         .gradient-gold { background: linear-gradient(135deg, #e8ad3a 0%, #d4952a 100%); }
         .glow-gold { box-shadow: 0 0 20px rgba(232, 173, 58, 0.2); }
+        
+        /* Interactive elements */
+        .interactive-element {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .interactive-element:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+        }
+        
+        .interactive-element:active {
+            transform: scale(0.98);
+        }
+        
         .card-hover { transition: all 0.3s ease; }
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .card-hover:active { transform: translateY(0px); }
+        
         .glass-effect { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); }
+        
+        /* Button interactions */
+        button {
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0px);
+        }
+        
+        /* Table rows */
+        tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        tbody tr:hover {
+            background: rgba(232, 173, 58, 0.1) !important;
+            transform: scale(1.01);
+        }
+        
+        tbody tr:active {
+            transform: scale(0.99);
+        }
+        
+        /* Input fields */
+        input {
+            transition: all 0.2s ease;
+        }
+        
+        input:hover {
+            border-color: rgba(232, 173, 58, 0.4) !important;
+        }
+        
+        /* Badge/label interactions */
+        .badge, span {
+            transition: all 0.2s ease;
+        }
+        
+        .badge:hover, span.clickable:hover {
+            transform: scale(1.05);
+        }
+        
+        .badge:active, span.clickable:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
@@ -24,8 +91,8 @@
 
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
-            <!-- Logo and Site Name - Clickable -->
-            <div class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity" onclick="window.location.href='/'">
+            <!-- Logo and Site Name -->
+            <div class="flex items-center gap-3">
                 <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-10 h-10 md:w-12 md:h-12">
                 <div class="flex flex-col">
                     <h1 class="text-2xl md:text-3xl font-bold gradient-gold bg-clip-text text-transparent">Hermes</h1>
