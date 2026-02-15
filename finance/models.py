@@ -23,6 +23,7 @@ class TradeHistory(models.Model):
     status = models.CharField(max_length=20, default="EXECUTED")
     confidence_score = models.FloatField(null=True)
     reason = models.TextField(null=True)
+    profit = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, default=0)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     @classmethod
@@ -39,6 +40,7 @@ class BotConfig(models.Model):
         default=60, help_text="Intervalo entre análises")
     cache_ttl_seconds = models.IntegerField(
         default=10, help_text="Tempo de vida do cache de preços")
+    bot_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, help_text="User that the bot is trading for")
 
     # riscos
     risk_tolerance = models.FloatField(

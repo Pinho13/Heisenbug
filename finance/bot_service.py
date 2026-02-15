@@ -15,10 +15,20 @@ from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot, UserBal
 logger = logging.getLogger(__name__)
 
 class TradeBot:
-    def __init__(self):
+    def __init__(self, user_id=None):
         from .uphold_api import UpholdAPIHandler
         self.api = UpholdAPIHandler()
-        self.user_id = 1 
+        # Get user_id from config if not provided, else use the one passed
+        if user_id is None:
+            try:
+                config = BotConfig.get_config()
+                if config.bot_user:
+                    user_id = config.bot_user.id
+                else:
+                    user_id = 1
+            except:
+                user_id = 1
+        self.user_id = user_id 
 
     def run_iteration(self):
         config = BotConfig.get_config()
@@ -80,23 +90,34 @@ class TradeBot:
     def execute_trade(self, d):
         try:
             with transaction.atomic():
-                # Determine operation type based on the pair and what we're trading
+                # Determine operation type based on what we're trading
+                # The key insight: if we're trading d['from'] -> d['to']
+                # and the pair is "A-B" where we're selling A to get B, that's a SELL
+                
                 crypto_currencies = ['BTC', 'ETH', 'LTC', 'XRP', 'ADA']
                 
-                pair_parts = d['pair'].split('-')
+                pair_parts = d['pair'].split('-') if '-' in d['pair'] else d['pair']
+                if isinstance(pair_parts, str):
+                    pair_parts = [d['pair'][:3], d['pair'][3:]] if len(d['pair']) > 3 else [d['pair']]
                 
-                # If selling crypto for anything else = SELL
+                # Determine operation:
+                # - If selling crypto (d['from'] is crypto) = SELL
+                # - If buying crypto (d['to'] is crypto) = BUY
+                # - If both fiat, check pair structure:
+                #   If d['from'] appears FIRST in pair (e.g., EUR-USD and from=EUR) = SELL
+                #   Otherwise = BUY
+                
                 if d['from'] in crypto_currencies:
+                    # Selling crypto
                     op = "SELL"
-                # If buying crypto for anything else = BUY
                 elif d['to'] in crypto_currencies:
+                    # Buying crypto
                     op = "BUY"
-                # Both fiat: check if we're selling the second currency (closing a buy position)
-                elif len(pair_parts) == 2 and d['from'] == pair_parts[1]:
-                    # We're selling what we bought (the second currency in the pair)
+                elif len(pair_parts) >= 2 and pair_parts[0] == d['from']:
+                    # Both fiat: if from currency is first in pair, we're selling it
                     op = "SELL"
                 else:
-                    # Default to BUY
+                    # Default: buying
                     op = "BUY"
                 
                 bal_from = UserBalance.objects.select_for_update().get(user_id=self.user_id, currency=d['from'])
@@ -112,14 +133,40 @@ class TradeBot:
                 bal_to.save()
                 if bal_from.amount <= 0: bal_from.delete()
 
+                # Calculate profit for SELL trades
+                profit = None
+                if op == "SELL":
+                    # Get average buy price for the currency we're selling
+                    buy_trades_for_currency = TradeHistory.objects.filter(
+                        user_id=self.user_id,
+                        operation="BUY",
+                        pair__contains=d['from']  # Pair contains the currency we're selling
+                    ).order_by('-timestamp')[:20]
+                    
+                    if buy_trades_for_currency.exists():
+                        buy_prices = [float(t.price_at_execution) for t in buy_trades_for_currency]
+                        avg_buy_price = sum(buy_prices) / len(buy_prices) if buy_prices else float(d['p_to'])
+                        
+                        # Profit = (sell_price - avg_buy_price) * amount_sold
+                        profit = (float(d['p_to']) - avg_buy_price) * float(d['amount'])
+                    else:
+                        # No previous buys, assume profit is 0
+                        profit = 0
+                else:
+                    # BUY trades have 0 profit until they're sold
+                    profit = 0
+
                 TradeHistory.objects.create(
                     user_id=self.user_id, pair=d['pair'], operation=op, amount=d['amount'],
-                    price_at_execution=d['p_to'], status="EXECUTED", confidence_score=d['conf']
+                    price_at_execution=d['p_to'], status="EXECUTED", confidence_score=d['conf'],
+                    profit=profit
                 )
-                print(f"✅ {op}: {d['from']} -> {d['to']} | Quantity: {received}")
+                print(f"✅ {op}: {d['from']} -> {d['to']} | Quantity: {received} | Profit: {profit}")
                 return True
         except Exception as e:
             print(f"❌ Trade failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def refresh_all_tickers(self):
@@ -154,14 +201,35 @@ class PortfolioOptimizer:
             for cur_destino in moedas:
                 if cur_origem == cur_destino: continue
                 
-                pair = f"{cur_origem}-{cur_destino}"
-                reverse_pair = f"{cur_destino}-{cur_origem}"
+                # Try different pair formats
+                pair_formats = [
+                    f"{cur_origem}-{cur_destino}",
+                    f"{cur_origem}{cur_destino}",
+                ]
+                reverse_formats = [
+                    f"{cur_destino}-{cur_origem}",
+                    f"{cur_destino}{cur_origem}",
+                ]
                 
-                if pair in tickers:
+                # Find which format exists in tickers
+                pair = None
+                reverse_pair = None
+                
+                for fmt in pair_formats:
+                    if fmt in tickers:
+                        pair = fmt
+                        break
+                
+                for fmt in reverse_formats:
+                    if fmt in tickers:
+                        reverse_pair = fmt
+                        break
+                
+                if pair:
                     p_from, p_to = Decimal('1'), Decimal(str(tickers[pair]['ask']))
                     ret = float((Decimal(str(tickers[pair]['bid'])) - p_to) / p_to)
                     active_pair = pair
-                elif reverse_pair in tickers:
+                elif reverse_pair:
                     p_from, p_to = Decimal(str(tickers[reverse_pair]['bid'])), Decimal('1')
                     ret = float((p_from - Decimal(str(tickers[reverse_pair]['ask']))) / Decimal(str(tickers[reverse_pair]['ask'])))
                     active_pair = reverse_pair
@@ -207,30 +275,36 @@ class BotRunner:
         self.logger.info("Bot stopped")
 
     def _run_loop(self):
-        print("this is the side thread?")
+        print("🤖 Bot loop started!")
         thresholdSeconds = 15.0
         lastFullPull = time.monotonic()
         try:
             while self.running:
-                config = BotConfig.get_config()
-                if not config.is_active:
-                    time.sleep(2)
-                    continue
+                try:
+                    config = BotConfig.get_config()
+                    if not config.is_active:
+                        time.sleep(2)
+                        continue
+                        
+                    now = time.monotonic()
+                    if now - lastFullPull >= thresholdSeconds:
+                        print("📊 Fetching tickers...")
+                        self.bot.refresh_all_tickers()
+                        lastFullPull = now
+                        executed = self.bot.run_iteration()
+                        if executed:
+                            print(f"✅ Executed {len(executed)} trades")
                     
-                now = time.monotonic()
-                if now - lastFullPull >= thresholdSeconds:
-                    print("trying to fetch tickers")
-                    self.bot.refresh_all_tickers()
-                    lastFullPull = now
-                    self.bot.run_iteration()
-                
-                time.sleep(config.check_interval_seconds)
+                    time.sleep(config.check_interval_seconds)
+                except Exception as e:
+                    print(f"⚠️ Error in iteration: {e}")
+                    self.logger.error(f"Error in iteration: {e}", exc_info=True)
+                    time.sleep(5)
         except Exception as e:
-            self.logger.error(
-                f"Error in bot loop: {e}",
-                exc_info=True
-            )
+            print(f"❌ Fatal error in bot loop: {e}")
+            self.logger.error(f"Fatal error in bot loop: {e}", exc_info=True)
             time.sleep(5)
+
 
     def is_running(self) -> bool:
         return self.running and self.thread and self.thread.is_alive()
