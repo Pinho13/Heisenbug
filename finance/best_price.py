@@ -6,7 +6,7 @@ def get_best_bid(pair):
     """Returns the lowest bid for a given pair (best price to buy at)."""
     result = PriceSnapshot.objects.filter(
         pair=pair
-    ).aggregate(best_bid=Min('bid'))
+    ).aggregate(best_bid=Max('bid'))
     return result['best_bid']
 
 
@@ -14,7 +14,7 @@ def get_best_ask(pair):
     """Returns the highest ask for a given pair (best price to sell at)."""
     result = PriceSnapshot.objects.filter(
         pair=pair
-    ).aggregate(best_ask=Max('ask'))
+    ).aggregate(best_ask=Min('ask'))
     return result['best_ask']
 
 
