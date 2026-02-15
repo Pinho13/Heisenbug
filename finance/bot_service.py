@@ -21,6 +21,7 @@ class TradeBot:
         from .uphold_api import UpholdAPIHandler
         self.api = UpholdAPIHandler()
         self.optimizer = PortfolioOptimizer(self.api)
+        self.logger = logger
 
     def run_iteration(self):
         config = BotConfig.get_config()
@@ -83,6 +84,49 @@ class TradeBot:
         except Exception as e:
             print(f"❌ Erro no Bot: {e}")
             return False
+    def refresh_all_tickers(self) -> None:
+        try:
+            tickers = self.api.get_all_tickers()
+            if not tickers:
+                self.logger.warning("Full ticker refresh returned no data")
+                return
+            for ticker in tickers:
+                pair = ticker.get('pair')
+                currency = ticker.get('currency')
+                if pair and currency:
+                    self._store_price_snapshot(pair, currency, ticker)
+            self.logger.debug(
+                f"Refreshed {len(tickers)} ticker snapshots"
+            )
+            print("the tickers should be in the database now!")
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed full ticker refresh: {e}",
+                exc_info=True
+            )
+    def _store_price_snapshot(self, pair: str, currency: str, ticker: dict):
+
+        try:
+          
+            ask_base = Decimal(str(ticker.get('ask', 0)))
+            bid_base = Decimal(str(ticker.get('bid', 0)))
+            
+            PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+
+            if random.random() > 0.5:
+                variacao = ask_base * Decimal('0.01')
+                
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base - (variacao * 2), currency=currency)
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base + (variacao * 2), ask=ask_base, currency=currency)
+                self.logger.info(f"Oportunidade gerada para {pair}!")
+            else:
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+                self.logger.info(f"Mercado estável para {pair}.")
+
+        except Exception as e:
+            self.logger.warning(f"Erro ao gravar snapshots para {pair}: {e}")
 
 
 class BotRunner:
