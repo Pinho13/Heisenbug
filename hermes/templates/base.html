@@ -723,7 +723,8 @@
             .catch(err => console.error('Error syncing bot status:', err));
 
         // Initial chart load
-        updateChart('30M');
+        let activeChartRange = '30M';
+        updateChart(activeChartRange);
 
         // Time range button clicks (single listener, correct URL)
         document.querySelectorAll('.time-filter-btn').forEach(btn => {
@@ -734,9 +735,15 @@
                 });
                 btn.classList.add('active', 'bg-yellow-500/20', 'text-yellow-400');
                 btn.classList.remove('hover:bg-slate-700/50', 'text-slate-400');
-                updateChart(btn.dataset.range);
+                activeChartRange = btn.dataset.range;
+                updateChart(activeChartRange);
             });
         });
+
+        // Refresh chart every 2 seconds to show new trades in real time
+        setInterval(function() {
+            updateChart(activeChartRange);
+        }, 2000);
 
         // Refresh trades table every 2 seconds
         setInterval(function() {

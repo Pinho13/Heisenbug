@@ -38,11 +38,15 @@ class TradeBot:
         if not allowed:
             allowed = ["BTC", "ETH", "EUR", "USD"]
 
+        # Skip inverse pairs like USDBTC/USDETH — their tiny values cause
+        # precision issues.  We trade BTCUSD/ETHUSD instead.
+        skip_pairs = {'USDBTC', 'USDETH'}
+
         tickers = self.api.get_all_tickers() or []
         tickers_by_source = {}  # {pair: {source: {ask, bid}}}
         for t in tickers:
             p = t.get('pair')
-            if not p or not any(m in p for m in allowed):
+            if not p or p in skip_pairs or not any(m in p for m in allowed):
                 continue
             try:
                 ask = Decimal(str(t['ask']))
@@ -153,92 +157,66 @@ class TradeBot:
         return True
 
 class PortfolioOptimizer:
+    # Each selected currency maps to exactly one tradeable pair and the
+    # balance currency used to fund the round-trip.
+    # pair_name: the Uphold ticker symbol
+    # from_currency: the balance we spend and get back in the round-trip
+    CURRENCY_TO_PAIR = {
+        'BTC': ('BTCUSD', 'USD'),
+        'ETH': ('ETHUSD', 'USD'),
+        'EUR': ('EURUSD', 'EUR'),
+        'USD': ('USDEUR', 'USD'),
+    }
+
     def find_all_opportunities(self, holdings, tickers_by_source, config):
         """Find arbitrage opportunities across sources for the same pair.
 
-        For each pair that has prices from two or more sources, check whether
-        one source's bid (sell price) exceeds another source's ask (buy price).
-        If so, we can buy cheap and sell expensive simultaneously.
+        For each selected currency, look up its canonical pair and check
+        whether one source's bid exceeds another source's ask.
 
         tickers_by_source: {pair: {source: {ask, bid}}}
         """
         bot_config = BotConfig.get_config()
-        moedas = [c.strip() for c in bot_config.selected_currencies.split(',') if c.strip()]
-        if not moedas:
-            moedas = ['BTC', 'ETH', 'EUR', 'USD']
+        selected = [c.strip() for c in bot_config.selected_currencies.split(',') if c.strip()]
+        if not selected:
+            selected = ['BTC', 'ETH', 'EUR', 'USD']
         opportunities = []
 
-        for cur_origem in holdings.keys():
-            if holdings[cur_origem] <= 0:
+        for currency in selected:
+            mapping = self.CURRENCY_TO_PAIR.get(currency)
+            if not mapping:
+                continue
+            pair_name, from_currency = mapping
+
+            if from_currency not in holdings or holdings[from_currency] <= 0:
                 continue
 
-            for cur_destino in moedas:
-                if cur_origem == cur_destino:
-                    continue
+            sources = tickers_by_source.get(pair_name)
+            if not sources or len(sources) < 2:
+                continue
 
-                # Try different pair formats
-                pair_formats = [
-                    f"{cur_origem}-{cur_destino}",
-                    f"{cur_origem}{cur_destino}",
-                ]
-                reverse_formats = [
-                    f"{cur_destino}-{cur_origem}",
-                    f"{cur_destino}{cur_origem}",
-                ]
+            # Find the best arbitrage: lowest ask (buy cheap) vs highest bid (sell expensive)
+            source_list = list(sources.items())
+            best_buy = min(source_list, key=lambda s: s[1]['ask'])
+            best_sell = max(source_list, key=lambda s: s[1]['bid'])
 
-                pair = None
-                reverse_pair = None
+            buy_ask = best_buy[1]['ask']
+            sell_bid = best_sell[1]['bid']
 
-                for fmt in pair_formats:
-                    if fmt in tickers_by_source:
-                        pair = fmt
-                        break
-                for fmt in reverse_formats:
-                    if fmt in tickers_by_source:
-                        reverse_pair = fmt
-                        break
+            if sell_bid <= buy_ask:
+                continue
 
-                active_pair = pair or reverse_pair
-                if not active_pair:
-                    continue
+            spread_pct = float(sell_bid - buy_ask) / float(buy_ask)
+            conf = max(0, min(1.0, spread_pct * 5000))
 
-                sources = tickers_by_source[active_pair]
-                if len(sources) < 2:
-                    continue
-
-                # Find the best arbitrage: lowest ask (buy cheap) vs highest bid (sell expensive)
-                source_list = list(sources.items())
-                best_buy = min(source_list, key=lambda s: s[1]['ask'])   # cheapest ask
-                best_sell = max(source_list, key=lambda s: s[1]['bid'])  # highest bid
-
-                buy_ask = best_buy[1]['ask']
-                sell_bid = best_sell[1]['bid']
-
-                # Only trade if there's a positive spread (sell_bid > buy_ask)
-                if sell_bid <= buy_ask:
-                    continue
-
-                spread_pct = float(sell_bid - buy_ask) / float(buy_ask)
-
-                # p_from / p_to encode how the 'from' currency converts via this pair
-                if pair:
-                    p_from = buy_ask
-                    p_to = Decimal('1')
-                else:
-                    p_from = Decimal('1')
-                    p_to = buy_ask
-
-                # Any positive spread is guaranteed profit for arbitrage.
-                # Scale so that a 0.01% spread already reaches high confidence.
-                conf = max(0, min(1.0, spread_pct * 5000))
-                if conf >= config.min_confidence_score:
-                    opportunities.append({
-                        'from': cur_origem, 'to': cur_destino,
-                        'amount': holdings[cur_origem] * Decimal(str(config.trade_size_percentage or 0.1)),
-                        'buy_ask': buy_ask, 'sell_bid': sell_bid,
-                        'p_from': p_from, 'p_to': p_to,
-                        'conf': conf, 'pair': active_pair
-                    })
+            if conf >= config.min_confidence_score:
+                opportunities.append({
+                    'from': from_currency, 'to': currency,
+                    'amount': holdings[from_currency] * Decimal(str(config.trade_size_percentage or 0.1)),
+                    'buy_ask': buy_ask, 'sell_bid': sell_bid,
+                    'p_from': buy_ask, 'p_to': Decimal('1'),
+                    'conf': conf, 'pair': pair_name
+                })
 
         return sorted(opportunities, key=lambda x: x['conf'], reverse=True)[:2]
 

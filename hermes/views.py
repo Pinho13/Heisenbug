@@ -142,23 +142,10 @@ def home(request):
     
     # Calculate total earnings and win rate from all trades for this user
     all_trades = TradeHistory.objects.filter(user=current_user)
-    total_profit = 0
-    winning_trades = 0
-    # Each round-trip is 2 trades (BUY+SELL), so count completed pairs
     total_trades = all_trades.count()
     round_trips = total_trades // 2
 
-    for trade in all_trades:
-        if trade.profit is not None:
-            try:
-                profit_value = float(trade.profit)
-                total_profit += profit_value
-                if profit_value > 0:
-                    winning_trades += 1
-            except (ValueError, TypeError):
-                pass
-
-    # Win rate based on round-trips, not individual trades
+    winning_trades = all_trades.filter(profit__gt=0).count()
     win_rate = (winning_trades / round_trips * 100) if round_trips > 0 else 0
 
     # Fetch bot config
@@ -169,11 +156,14 @@ def home(request):
 
     risk_level = calculate_risk_level(all_trades, config)
 
-    # Portfolio value = sum of all UserBalance amounts (the real source of truth)
+    # Portfolio value = actual wallet balances
     portfolio_value = float(
         UserBalance.objects.filter(user=current_user)
         .aggregate(total=Sum('amount'))['total'] or 0
     )
+
+    # Earnings = portfolio value - initial investment (always consistent)
+    total_profit = portfolio_value - float(config.investment_amount or 0)
 
     context = {
         'top_currencies': top_currencies,
@@ -502,34 +492,24 @@ def get_dashboard_metrics(request):
     try:
         current_user = request.user
         all_trades = TradeHistory.objects.filter(user=current_user)
-        
-        # Calculate earnings
-        total_profit = 0
-        winning_trades = 0
         total_trades = all_trades.count()
         round_trips = total_trades // 2
 
-        for trade in all_trades:
-            if trade.profit is not None:
-                try:
-                    profit_value = float(trade.profit)
-                    total_profit += profit_value
-                    if profit_value > 0:
-                        winning_trades += 1
-                except (ValueError, TypeError):
-                    pass
-
+        winning_trades = all_trades.filter(profit__gt=0).count()
         win_rate = (winning_trades / round_trips * 100) if round_trips > 0 else 0
-        
-        # Portfolio value = sum of all UserBalance amounts (the real source of truth)
+
+        config = BotConfig.get_config()
+        risk_level = calculate_risk_level(all_trades, config)
+
+        # Portfolio value = actual wallet balances
         portfolio_value = float(
             UserBalance.objects.filter(user=current_user)
             .aggregate(total=Sum('amount'))['total'] or 0
         )
-        
-        config = BotConfig.get_config()
-        risk_level = calculate_risk_level(all_trades, config)
-        
+
+        # Earnings = portfolio value - initial investment (always consistent)
+        total_profit = portfolio_value - float(config.investment_amount or 0)
+
         return JsonResponse({
             'risk_level': f'{risk_level:.1f}',
             'earnings': f'{total_profit:,.2f}',
