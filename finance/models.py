@@ -17,9 +17,9 @@ class TradeHistory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE, null=True, blank=True)
     pair = models.CharField(max_length=20)
-    operation = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=20, decimal_places=8)
-    price_at_execution = models.DecimalField(max_digits=20, decimal_places=8)
+    operation = models.CharField(max_length=15)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    price_at_execution = models.DecimalField(max_digits=15, decimal_places=5)
     status = models.CharField(max_length=20, default="EXECUTED")
     confidence_score = models.FloatField(null=True)
     reason = models.TextField(null=True)
