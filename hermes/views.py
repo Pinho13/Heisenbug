@@ -4,21 +4,96 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from finance.uphold_api import UpholdAPIHandler
-from finance.models import TradeHistory, BotConfig, PriceSnapshot
+from django.db.models import Sum
+from finance.models import TradeHistory, BotConfig, PriceSnapshot, UserBalance
 import logging
 import json
 import os
+import math
 from datetime import datetime, timedelta
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+
+def calculate_risk_level(all_trades, config):
+    """Shared risk calculation used by both the home view and the metrics API.
+
+    Always produces exactly 5 weighted factors so the result responds to
+    every input (investment amount, trade history, config) instead of
+    falling back to a flat average.
+    """
+    sell_trades = all_trades.filter(operation="SELL")
+    buy_trades = all_trades.filter(operation="BUY")
+
+    trade_size = config.trade_size_percentage or 0.1
+    risk_tolerance = config.risk_tolerance or 0.5
+    investment_amount = float(config.investment_amount or 0)
+
+    # --- Factor 1: Loss rate (0-40) ---
+    if sell_trades.count() > 0 and buy_trades.exists():
+        buy_prices = [float(t.price_at_execution) for t in buy_trades]
+        avg_buy_price = sum(buy_prices) / len(buy_prices)
+        sell_prices = [float(t.price_at_execution) for t in sell_trades]
+        profitable_sells = sum(1 for p in sell_prices if p > avg_buy_price)
+        loss_rate = 1 - (profitable_sells / sell_trades.count())
+        loss_risk = loss_rate * 40
+    elif sell_trades.count() > 0:
+        loss_risk = 25
+    else:
+        loss_risk = 18
+
+    # --- Factor 2: Volatility (0-30) ---
+    if all_trades.count() > 2:
+        prices = [float(t.price_at_execution) for t in all_trades]
+        avg_price = sum(prices) / len(prices)
+        variance = sum((p - avg_price) ** 2 for p in prices) / len(prices)
+        volatility = (variance ** 0.5) / avg_price if avg_price > 0 else 0
+        volatility_risk = min(volatility * 100, 30)
+    else:
+        volatility_risk = 12  # baseline when few trades
+
+    # --- Factor 3: Investment exposure (0-40) ---
+    # Combines investment amount with trade-size to reflect actual money at risk.
+    exposure = investment_amount * trade_size  # money risked per trade
+    if exposure > 0:
+        investment_risk = min(math.log10(exposure + 1) * 10, 40)
+    else:
+        investment_risk = 0
+
+    # --- Factor 4: Confidence (0-30) ---
+    if all_trades.count() > 0:
+        recent = all_trades.order_by('-timestamp')[:10]
+        avg_conf = sum(t.confidence_score or 0 for t in recent) / len(recent)
+        confidence_risk = (1 - avg_conf) * 30
+    else:
+        confidence_risk = 20  # neutral baseline instead of skipping
+
+    # --- Factor 5: Risk tolerance config (0-20) ---
+    tolerance_risk = risk_tolerance * 20
+
+    # Weighted combination (weights sum to 1.0)
+    weights = [0.20, 0.15, 0.25, 0.20, 0.20]
+    components = [loss_risk, volatility_risk, investment_risk, confidence_risk, tolerance_risk]
+    risk_level = sum(c * w for c, w in zip(components, weights))
+
+    # Dynamic adjustment for recent sell performance
+    if sell_trades.count() >= 5 and buy_trades.exists():
+        buy_prices = [float(t.price_at_execution) for t in buy_trades]
+        avg_buy_price = sum(buy_prices) / len(buy_prices)
+        recent_sells = sell_trades.order_by('-timestamp')[:5]
+        recent_profitable = sum(1 for t in recent_sells if float(t.price_at_execution) > avg_buy_price)
+        recent_performance = recent_profitable / 5
+        if recent_performance < 0.5:
+            risk_level *= (1.1 - recent_performance)
+
+    return max(0, min(100, risk_level))
+
 CURRENCIES = [
-    {'symbol': 'EUR-USD', 'name': 'Euro / United States Dollar', 'icon': '€', 'color': 'bg-blue-500'},
-    {'symbol': 'USD-EUR', 'name': 'United States Dollar / Euro', 'icon': '$', 'color': 'bg-green-500'},
-    {'symbol': 'BTC-USD', 'name': 'Bitcoin / United States Dollar', 'icon': '₿', 'color': 'bg-orange-500'},
-    {'symbol': 'ETH-USD', 'name': 'Ethereum / United States Dollar', 'icon': 'Ξ', 'color': 'bg-purple-500'},
+    {'symbol': 'BTCUSD', 'name': 'Bitcoin / US Dollar', 'icon': '₿', 'color': 'bg-orange-500'},
+    {'symbol': 'ETHUSD', 'name': 'Ethereum / US Dollar', 'icon': 'Ξ', 'color': 'bg-purple-500'},
+    {'symbol': 'EURUSD', 'name': 'Euro / US Dollar', 'icon': '€', 'color': 'bg-blue-500'},
+    {'symbol': 'USDEUR', 'name': 'US Dollar / Euro', 'icon': '$', 'color': 'bg-green-500'},
 ]
 
 
@@ -28,8 +103,6 @@ def splash(request):
 
 @login_required(login_url='/hermes/login/')
 def home(request):
-    api = UpholdAPIHandler()
-    
     # Auto-start bot if config says it should be active
     try:
         config = BotConfig.get_config()
@@ -41,14 +114,15 @@ def home(request):
     # Get current user
     current_user = request.user
 
-    # Fetch live prices for top currencies
+    # Load market rates from cached PriceSnapshot data (populated by bot)
+    # This avoids blocking the page on slow/unreachable external API calls
     top_currencies = []
     for currency in CURRENCIES:
         try:
-            ticker = api.get_ticker(currency['symbol'])
-            if ticker:
-                bid = float(ticker.get('bid', 0))
-                ask = float(ticker.get('ask', 0))
+            snapshot = PriceSnapshot.objects.filter(pair=currency['symbol']).order_by('-timestamp').first()
+            if snapshot:
+                bid = float(snapshot.bid)
+                ask = float(snapshot.ask)
                 price = (bid + ask) / 2
                 top_currencies.append({
                     'symbol': currency['symbol'],
@@ -60,133 +134,40 @@ def home(request):
                     'ask': f'{ask:,.4f}',
                 })
         except Exception as e:
-            logger.error(f"Error fetching {currency['symbol']}: {e}")
+            logger.error(f"Error loading cached price for {currency['symbol']}: {e}")
 
     # Fetch recent trades for this user
+    # NOTE: top_currencies is also served live via /hermes/api/prices/
     trades = TradeHistory.objects.filter(user=current_user).order_by('-timestamp')[:10]
     
     # Calculate total earnings and win rate from all trades for this user
     all_trades = TradeHistory.objects.filter(user=current_user)
-    total_profit = 0
-    winning_trades = 0
     total_trades = all_trades.count()
-    
-    for trade in all_trades:
-        if trade.profit is not None:
-            try:
-                profit_value = float(trade.profit)
-                total_profit += profit_value
-                if profit_value > 0:
-                    winning_trades += 1
-            except (ValueError, TypeError):
-                pass
-    
-    # Calculate win rate percentage
-    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+    round_trips = total_trades // 2
+
+    winning_trades = all_trades.filter(profit__gt=0).count()
+    win_rate = (winning_trades / round_trips * 100) if round_trips > 0 else 0
 
     # Fetch bot config
     try:
         config = BotConfig.get_config()
-        risk_tolerance = config.risk_tolerance
-        trade_size = config.trade_size_percentage
     except Exception:
-        risk_tolerance = 0.5
-        trade_size = 0.1
-    
-    # Calculate sophisticated risk level using multiple factors
-    risk_components = []
-    
-    sell_trades = all_trades.filter(operation="SELL")
-    buy_trades = all_trades.filter(operation="BUY")
-    
-    # Factor 1: Loss Rate from closed trades (win/loss ratio)
-    if sell_trades.count() > 0:
-        sell_count = sell_trades.count()
-        
-        if buy_trades.exists():
-            buy_prices = [float(t.price_at_execution) for t in buy_trades]
-            avg_buy_price = sum(buy_prices) / len(buy_prices) if buy_prices else 0
-            
-            # Count profitable sells
-            sell_prices = [float(t.price_at_execution) for t in sell_trades]
-            avg_sell_price = sum(sell_prices) / len(sell_prices) if sell_prices else 0
-            
-            profitable_sells = sum(1 for price in sell_prices if price > avg_buy_price)
-            closed_win_rate = profitable_sells / sell_count if sell_count > 0 else 0
-            loss_rate = 1 - closed_win_rate
-            
-            # Loss rate component (0-40% of final risk)
-            loss_risk = loss_rate * 40
-            risk_components.append(loss_risk)
-        else:
-            risk_components.append(20)  # Default if no buy trades
-    else:
-        risk_components.append(10)  # Low risk if no closed trades yet
-    
-    # Factor 2: Volatility Risk (price movement magnitude)
-    if all_trades.count() > 2:
-        prices = [float(t.price_at_execution) for t in all_trades]
-        if len(prices) > 1:
-            avg_price = sum(prices) / len(prices)
-            variance = sum((p - avg_price) ** 2 for p in prices) / len(prices)
-            volatility = (variance ** 0.5) / avg_price if avg_price > 0 else 0
-            volatility_risk = min(volatility * 100, 30)  # Cap at 30%
-            risk_components.append(volatility_risk)
-    
-    # Factor 3: Position Size Risk (trade size parameter)
-    size_risk = trade_size * 40  # 0-40% of final risk
-    risk_components.append(size_risk)
-    
-    # Factor 4: Confidence in recent trades
-    if all_trades.count() > 0:
-        recent_trades = all_trades.order_by('-timestamp')[:10]
-        avg_confidence = sum(t.confidence_score or 0 for t in recent_trades) / len(recent_trades)
-        # Lower confidence = higher risk
-        confidence_risk = (1 - avg_confidence) * 30  # 0-30% of final risk
-        risk_components.append(confidence_risk)
-    
-    # Factor 5: Risk Tolerance Configuration
-    tolerance_risk = risk_tolerance * 20  # 0-20% of final risk
-    risk_components.append(tolerance_risk)
-    
-    # Combine all factors with weighted average
-    if risk_components:
-        # Weights: loss_rate (25%), volatility (20%), size (25%), confidence (20%), tolerance (10%)
-        weights = [0.25, 0.20, 0.25, 0.20, 0.10]
-        risk_level = sum(r * w for r, w in zip(risk_components, weights)) if len(risk_components) >= len(weights) else sum(risk_components) / len(risk_components)
-    else:
-        risk_level = 50
-    
-    # Apply mathematical smoothing function (sigmoid-like) for more natural feel
-    # This prevents extreme jumps and gives a smooth curve
-    risk_level = max(0, min(100, risk_level))  # Clamp to 0-100
-    
-    # Add a small dynamic adjustment based on recent performance
-    if sell_trades.count() >= 5:
-        recent_sells = sell_trades.order_by('-timestamp')[:5]
-        recent_profitable = sum(1 for t in recent_sells if float(t.price_at_execution) > avg_buy_price)
-        recent_performance = recent_profitable / 5
-        # If recent performance is bad, increase risk slightly
-        if recent_performance < 0.5:
-            risk_level *= (1.1 - recent_performance)
-    
-    risk_level = max(0, min(100, risk_level))  # Final clamp
+        config = BotConfig()
 
-    # Calculate portfolio value
-    from django.conf import settings
-    try:
-        initial_balance = settings.INITIAL_PORTFOLIO_BALANCE
-        portfolio_value = initial_balance + total_profit
-        portfolio_value = max(0, portfolio_value)  # Don't show negative
-    except Exception as e:
-        logger.error(f"Error calculating portfolio value: {e}")
-        portfolio_value = 10000 + total_profit
+    risk_level = calculate_risk_level(all_trades, config)
+
+    # Portfolio value = actual wallet balances
+    portfolio_value = float(
+        UserBalance.objects.filter(user=current_user)
+        .aggregate(total=Sum('amount'))['total'] or 0
+    )
+
+    # Earnings = portfolio value - initial investment (always consistent)
+    total_profit = portfolio_value - float(config.investment_amount or 0)
 
     context = {
         'top_currencies': top_currencies,
         'trades': trades,
-        'risk_tolerance': risk_tolerance,
-        'trade_size': trade_size,
         'total_earnings': f'{total_profit:,.2f}',
         'win_rate': f'{win_rate:.1f}',
         'total_trades': total_trades,
@@ -255,7 +236,11 @@ def get_chart_data_by_range(time_range, user_id=None):
     now = timezone.now()
     
     # Determine date range and bucket strategy
-    if time_range == '1D':
+    if time_range == '30M':
+        start_date = now - timedelta(minutes=30)
+        bucket_type = 'minute'
+        num_buckets = 30
+    elif time_range == '1D':
         start_date = now - timedelta(days=1)
         bucket_type = 'hour'
         num_buckets = 24
@@ -288,7 +273,10 @@ def get_chart_data_by_range(time_range, user_id=None):
     current_date = start_date
     
     for i in range(num_buckets):
-        if bucket_type == 'hour':
+        if bucket_type == 'minute':
+            bucket_end = current_date + timedelta(minutes=1)
+            label = current_date.strftime('%H:%M')
+        elif bucket_type == 'hour':
             bucket_end = current_date + timedelta(hours=1)
             label = current_date.strftime('%H:%M')
         elif bucket_type == 'day':
@@ -316,45 +304,38 @@ def get_chart_data_by_range(time_range, user_id=None):
         
         current_date = bucket_end
     
-    # Calculate cumulative profit and chart coordinates
+    # First pass: compute cumulative profits to find the true max for Y scaling
+    cumulative_values = []
+    running = 0
+    for bucket in buckets:
+        running += bucket['profit']
+        cumulative_values.append(running)
+
+    # Use the max absolute cumulative value for scaling (handles both positive and negative)
+    max_abs = max((abs(v) for v in cumulative_values), default=1)
+    if max_abs <= 0:
+        max_abs = 1
+
+    # Second pass: build data points with correct Y coordinates
     data_points = []
-    cumulative_profit = 0
-    max_profit = max([b['profit'] for b in buckets]) if buckets else 1
-    if max_profit <= 0:
-        max_profit = 1  # Prevent division by zero
-    
     for i, bucket in enumerate(buckets):
-        cumulative_profit += bucket['profit']
-        
-        # Scale to fit in SVG (800px width, 280px height)
-        x = int((i / len(buckets)) * 800) if len(buckets) > 0 else 0
-        # Y position: 280 at bottom (0 profit), lower on screen = higher profit
-        y = int(280 - ((cumulative_profit / max_profit) * 280) if max_profit > 0 else 280)
-        y = max(0, min(280, y))  # Clamp to valid range
-        
+        cumulative = cumulative_values[i]
+
+        # X: evenly spaced across 800px width
+        x = int((i / max(len(buckets) - 1, 1)) * 800)
+        # Y: 280 = bottom (0 profit), 0 = top (max profit)
+        y = int(280 - (cumulative / max_abs) * 250)
+        y = max(10, min(280, y))
+
         data_points.append({
             'x': x,
             'y': y,
-            'value': round(cumulative_profit, 2),
+            'value': round(cumulative, 2),
             'label': bucket['label'],
             'bucket_profit': round(bucket['profit'], 2),
-            'trades_count': bucket['trades_count']
+            'trades_count': bucket['trades_count'],
         })
-    
-    # If no data, return empty buckets with labels
-    if not data_points:
-        data_points = []
-        for i in range(num_buckets):
-            x = int((i / num_buckets) * 800)
-            data_points.append({
-                'x': x,
-                'y': 280,
-                'value': 0,
-                'label': buckets[i]['label'] if i < len(buckets) else '',
-                'bucket_profit': 0,
-                'trades_count': 0
-            })
-    
+
     return data_points
 
 
@@ -395,16 +376,26 @@ def bot_start(request):
     """Start the trading bot"""
     try:
         config = BotConfig.get_config()
-        
+
         # Set the bot user to the currently logged-in user
         if request.user.is_authenticated:
             config.bot_user = request.user
             config.save()
-        
+
+        # Seed initial balances (EUR + USD) from investment amount if user has no balances
+        if request.user.is_authenticated and config.investment_amount > 0:
+            from decimal import Decimal
+            existing = UserBalance.objects.filter(user=request.user)
+            if not existing.exists():
+                half = Decimal(str(config.investment_amount)) / 2
+                UserBalance.objects.create(user=request.user, currency='EUR', amount=half)
+                UserBalance.objects.create(user=request.user, currency='USD', amount=half)
+                logger.info(f"Created initial EUR+USD balances of {half} each for {request.user}")
+
         # Update config
         config.is_active = True
         config.save()
-        
+
         # Try to start bot runner
         runner = get_bot_runner()
         if not runner.is_running():
@@ -501,120 +492,24 @@ def get_dashboard_metrics(request):
     try:
         current_user = request.user
         all_trades = TradeHistory.objects.filter(user=current_user)
-        
-        # Calculate earnings
-        total_profit = 0
-        winning_trades = 0
         total_trades = all_trades.count()
-        
-        for trade in all_trades:
-            if trade.profit is not None:
-                try:
-                    profit_value = float(trade.profit)
-                    total_profit += profit_value
-                    if profit_value > 0:
-                        winning_trades += 1
-                except (ValueError, TypeError):
-                    pass
-        
-        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-        
-        # Calculate portfolio value from local data (trades + starting balance)
-        portfolio_value = 0
-        try:
-            from django.conf import settings
-            initial_balance = settings.INITIAL_PORTFOLIO_BALANCE
-            
-            # Calculate current portfolio value from trades
-            # Add all profits/losses to initial balance
-            current_balance = initial_balance + total_profit
-            portfolio_value = max(0, current_balance)  # Don't show negative
-            
-        except Exception as e:
-            logger.debug(f"Error calculating portfolio value: {e}")
-            portfolio_value = 10000 + total_profit  # Fallback
-        
-        # Calculate risk level (same complex calculation as home view)
-        risk_level = 0
-        sell_trades = all_trades.filter(operation="SELL")
-        buy_trades = all_trades.filter(operation="BUY")
-        
-        risk_components = []
-        
-        # Factor 1: Loss Rate
-        if sell_trades.count() > 0:
-            sell_count = sell_trades.count()
-            if buy_trades.exists():
-                buy_prices = [float(t.price_at_execution) for t in buy_trades]
-                avg_buy_price = sum(buy_prices) / len(buy_prices) if buy_prices else 0
-                
-                sell_prices = [float(t.price_at_execution) for t in sell_trades]
-                profitable_sells = sum(1 for price in sell_prices if price > avg_buy_price)
-                closed_win_rate = profitable_sells / sell_count if sell_count > 0 else 0
-                loss_rate = 1 - closed_win_rate
-                
-                loss_risk = loss_rate * 40
-                risk_components.append(loss_risk)
-            else:
-                risk_components.append(20)
-        else:
-            risk_components.append(10)
-        
-        # Factor 2: Volatility
-        if all_trades.count() > 2:
-            prices = [float(t.price_at_execution) for t in all_trades]
-            if len(prices) > 1:
-                avg_price = sum(prices) / len(prices)
-                variance = sum((p - avg_price) ** 2 for p in prices) / len(prices)
-                volatility = (variance ** 0.5) / avg_price if avg_price > 0 else 0
-                volatility_risk = min(volatility * 100, 30)
-                risk_components.append(volatility_risk)
-        
-        # Factor 3: Trade Size
-        try:
-            config = BotConfig.get_config()
-            trade_size = config.trade_size_percentage
-        except:
-            trade_size = 0.1
-        
-        size_risk = trade_size * 40
-        risk_components.append(size_risk)
-        
-        # Factor 4: Confidence
-        if all_trades.count() > 0:
-            recent_trades = all_trades.order_by('-timestamp')[:10]
-            avg_confidence = sum(t.confidence_score or 0 for t in recent_trades) / len(recent_trades)
-            confidence_risk = (1 - avg_confidence) * 30
-            risk_components.append(confidence_risk)
-        
-        # Factor 5: Risk Tolerance
-        try:
-            risk_tolerance = config.risk_tolerance
-        except:
-            risk_tolerance = 0.5
-        
-        tolerance_risk = risk_tolerance * 20
-        risk_components.append(tolerance_risk)
-        
-        # Combine all factors
-        if risk_components:
-            weights = [0.25, 0.20, 0.25, 0.20, 0.10]
-            risk_level = sum(r * w for r, w in zip(risk_components, weights)) if len(risk_components) >= len(weights) else sum(risk_components) / len(risk_components)
-        else:
-            risk_level = 50
-        
-        risk_level = max(0, min(100, risk_level))
-        
-        # Dynamic adjustment for recent performance
-        if sell_trades.count() >= 5:
-            recent_sells = sell_trades.order_by('-timestamp')[:5]
-            recent_profitable = sum(1 for t in recent_sells if float(t.price_at_execution) > avg_buy_price)
-            recent_performance = recent_profitable / 5
-            if recent_performance < 0.5:
-                risk_level *= (1.1 - recent_performance)
-        
-        risk_level = max(0, min(100, risk_level))
-        
+        round_trips = total_trades // 2
+
+        winning_trades = all_trades.filter(profit__gt=0).count()
+        win_rate = (winning_trades / round_trips * 100) if round_trips > 0 else 0
+
+        config = BotConfig.get_config()
+        risk_level = calculate_risk_level(all_trades, config)
+
+        # Portfolio value = actual wallet balances
+        portfolio_value = float(
+            UserBalance.objects.filter(user=current_user)
+            .aggregate(total=Sum('amount'))['total'] or 0
+        )
+
+        # Earnings = portfolio value - initial investment (always consistent)
+        total_profit = portfolio_value - float(config.investment_amount or 0)
+
         return JsonResponse({
             'risk_level': f'{risk_level:.1f}',
             'earnings': f'{total_profit:,.2f}',
@@ -627,4 +522,84 @@ def get_dashboard_metrics(request):
         logger.error(f"Error fetching metrics: {e}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
+
+@login_required(login_url='/hermes/login/')
+@require_http_methods(["GET"])
+def get_market_prices(request):
+    """Get current market rates live from the Uphold API."""
+    try:
+        from finance.uphold_api import UpholdAPIHandler
+        api = UpholdAPIHandler()
+        prices = []
+        for currency in CURRENCIES:
+            ticker = api.get_ticker(currency['symbol'])
+            if ticker:
+                bid = float(ticker.get('bid', 0))
+                ask = float(ticker.get('ask', 0))
+            else:
+                # Fallback to latest DB snapshot if API is unreachable
+                snapshot = PriceSnapshot.objects.filter(pair=currency['symbol']).order_by('-timestamp').first()
+                if snapshot:
+                    bid = float(snapshot.bid)
+                    ask = float(snapshot.ask)
+                else:
+                    continue
+            price = (bid + ask) / 2
+            prices.append({
+                'symbol': currency['symbol'],
+                'name': currency['name'],
+                'icon': currency['icon'],
+                'color': currency['color'],
+                'price': f'${price:,.2f}',
+                'bid': f'{bid:,.4f}',
+                'ask': f'{ask:,.4f}',
+            })
+        return JsonResponse({'prices': prices})
+    except Exception as e:
+        logger.error(f"Error fetching market prices: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required(login_url='/hermes/login/')
+@require_http_methods(["GET", "POST"])
+def user_preferences(request):
+    """Get or save user trading preferences (selected currencies + investment amount)"""
+    try:
+        config = BotConfig.get_config()
+
+        if request.method == 'GET':
+            currencies = [c.strip() for c in config.selected_currencies.split(',') if c.strip()]
+            return JsonResponse({
+                'selected_currencies': currencies,
+                'investment_amount': str(config.investment_amount),
+            })
+
+        # POST
+        data = json.loads(request.body)
+        if 'selected_currencies' in data:
+            currencies = data['selected_currencies']
+            if isinstance(currencies, list):
+                config.selected_currencies = ','.join(currencies)
+        if 'investment_amount' in data:
+            try:
+                new_amount = float(data['investment_amount'])
+                config.investment_amount = new_amount
+                # Update initial balance if no trades have been made yet
+                if request.user.is_authenticated and new_amount > 0:
+                    from decimal import Decimal
+                    has_trades = TradeHistory.objects.filter(user=request.user).exists()
+                    if not has_trades:
+                        UserBalance.objects.update_or_create(
+                            user=request.user, currency='EUR',
+                            defaults={'amount': Decimal(str(new_amount))}
+                        )
+            except (ValueError, TypeError):
+                pass
+        config.save()
+
+        return JsonResponse({'status': 'ok'})
+    except Exception as e:
+        logger.error(f"Error in user_preferences: {e}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 

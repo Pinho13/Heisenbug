@@ -167,24 +167,14 @@
             transform: translate(-50%, -50%);
         }
         
-        /* Chart Tooltip */
-        #chartTooltip {
-            background: rgba(26, 26, 46, 0.95) !important;
-            backdrop-filter: blur(10px) !important;
-            border: 1px solid rgba(232, 173, 58, 0.3) !important;
-            position: fixed !important;
-            z-index: 9999 !important;
-            pointer-events: none !important;
+        /* Chart crosshair popup */
+        #chartPopup {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
             white-space: nowrap;
-            padding: 8px 12px !important;
-            border-radius: 8px !important;
-        }
-        
-        #chartTooltip.hidden {
-            display: none !important;
-        }
         }
     </style>
+</head>
 <body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
 <div class="mouse-glow" id="mouseGlow"></div>
 <div class="flex min-h-screen flex-col md:flex-row relative z-10">
@@ -279,7 +269,7 @@
                 <p class="text-sm text-slate-400 mb-4">Win Rate: <span class="text-green-400 font-semibold" data-metric="win-rate">↑ {{ win_rate|default:"0" }}%</span> (<span data-metric="trade-count">{{ total_trades|default:"0" }} trades</span>)</p>
 
                 <div class="flex justify-center flex-1 items-center">
-                    <div class="relative w-32 h-32">
+                    <div class="relative w-40 h-40">
                         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
                             <circle cx="80" cy="80" r="70" stroke="#d4952a" stroke-width="16" fill="none" opacity="0.3" />
                             <circle id="progressCircle" cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(212,149,42,0.5)]" />
@@ -317,7 +307,7 @@
                         <th class="text-center pb-2">Price</th>
                     </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-800/50">
+                    <tbody id="market-rates-body" class="divide-y divide-slate-800/50">
                     {% for currency in top_currencies %}
                     <tr class="hover:bg-white/5">
                         <td class="py-2.5">
@@ -394,19 +384,8 @@
                         </div>
                     </div>
                     
-                    <div id="selectedCurrencies" class="flex flex-wrap gap-3">
-                        <!-- Default: Bitcoin -->
-                        <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-xl font-bold shadow-lg cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
-                                ₿
-                                <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            <span class="text-xs font-semibold text-slate-300">BTC</span>
-                        </div>
+                    <div id="selectedCurrencies" class="flex flex-wrap gap-3 justify-center">
+                        <!-- Populated by JavaScript from saved preferences -->
                     </div>
                 </div>
                 
@@ -455,7 +434,8 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold">Profit Trend</h2>
                     <div class="flex gap-2">
-                        <button class="time-filter-btn active px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-yellow-500/20 text-yellow-400" data-range="1D">1D</button>
+                        <button class="time-filter-btn active px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-yellow-500/20 text-yellow-400" data-range="30M">30M</button>
+                        <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="1D">1D</button>
                         <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="1W">1W</button>
                         <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="1M">1M</button>
                         <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="3M">3M</button>
@@ -477,29 +457,24 @@
                                 </feMerge>
                             </filter>
                         </defs>
-                        <line x1="0" y1="56" x2="800" y2="56" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
-                        <line x1="0" y1="112" x2="800" y2="112" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
-                        <line x1="0" y1="168" x2="800" y2="168" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
-                        <line x1="0" y1="224" x2="800" y2="224" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
 
+                        <g id="chartGrid"></g>
                         <path id="chartFill" fill="url(#chartGradient)" />
                         <path id="chartLine" fill="none" stroke="rgb(232, 173, 58)" stroke-width="3" filter="url(#glow)" />
-                        <g id="chartPoints"></g>
                     </svg>
-                    <!-- Tooltip -->
-                    <div id="chartTooltip" class="hidden absolute pointer-events-none glass-effect border border-[#e8ad3a]/50 rounded-lg px-4 py-3 shadow-xl z-30 text-sm glow-gold">
-                        <div class="font-bold text-[#e8ad3a]" id="tooltipLabel"></div>
-                        <div class="text-slate-300 mt-1">Profit: <span class="font-bold text-white" id="tooltipValue"></span></div>
-                        <div class="text-slate-500 text-xs mt-1">Trades: <span id="tooltipTrades"></span></div>
+                    <!-- Crosshair: vertical line + dot + popup (all HTML, immune to SVG distortion) -->
+                    <div id="chartCrosshair" class="absolute top-0 bottom-0 hidden" style="width: 1px; background: rgba(232, 173, 58, 0.4); pointer-events: none; z-index: 20;">
+                        <div id="chartDot" class="absolute rounded-full" style="width: 10px; height: 10px; transform: translate(-4.5px, -5px); border: 2px solid;"></div>
                     </div>
-                    <div id="chartLabels" class="absolute bottom-0 left-0 right-0 text-xs text-slate-500" style="height: 16px; overflow: hidden;"></div>
-                    <div class="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-500 pointer-events-none">
-                        <span>500</span>
-                        <span>400</span>
-                        <span>300</span>
-                        <span>200</span>
-                        <span>100</span>
-                        <span>0</span>
+                    <div id="chartPopup" class="hidden absolute z-30 pointer-events-none glass-effect rounded-lg px-4 py-3 shadow-xl text-sm" style="border: 1px solid rgba(232, 173, 58, 0.4);">
+                        <div class="font-bold text-[#e8ad3a] text-xs" id="popupLabel"></div>
+                        <div class="mt-1 text-lg font-bold" id="popupProfit"></div>
+                        <div class="text-slate-500 text-xs mt-1">Trades: <span id="popupTrades"></span></div>
+                        <div class="text-slate-500 text-xs">Cumulative: <span class="text-white font-semibold" id="popupCumulative"></span></div>
+                    </div>
+                    <div id="chartLabels" class="absolute bottom-0 left-0 right-0 text-xs text-slate-500 relative z-50" style="height: 16px; overflow: hidden;"></div>
+                    <div id="chartYAxis"
+                        style="position:absolute; left:0; top:0; height:264px; width:50px; pointer-events:none; font-size:12px; color:#94a3b8;">
                     </div>
                 </div>
             </section>
@@ -513,176 +488,263 @@
 
 <script>
     // Mouse glow effect
-    const mouseGlow = document.getElementById('mouseGlow');
+    mouseGlow = document.getElementById('mouseGlow');
     document.addEventListener('mousemove', (e) => {
         mouseGlow.style.left = e.clientX + 'px';
         mouseGlow.style.top = e.clientY + 'px';
     });
-    
-    // Bot Toggle Function
+
+    // ========== BOT TOGGLE ==========
     let botRunning = false;
-    
-    function toggleBot() {
+
+    function updateBotUI(isRunning) {
         const btn = document.getElementById('botToggleBtn');
         const statusDot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         const btnIcon = document.getElementById('botBtnIcon');
         const btnText = document.getElementById('botBtnText');
-        
-        // Check current status first
-        fetch('/hermes/api/bot/status/')
-            .then(r => r.json())
-            .then(data => {
-                const isRunning = data.is_running;
-                const endpoint = isRunning ? '/hermes/api/bot/stop/' : '/hermes/api/bot/start/';
-                
-                return fetch(endpoint, { method: 'POST' });
-            })
-            .then(r => r.json())
-            .then(data => {
-                // After toggling, fetch the new status
-                return fetch('/hermes/api/bot/status/').then(r => r.json());
-            })
-            .then(data => {
-                const isRunning = data.is_running;
-                
-                if (isRunning) {
-                    // Bot Started
-                    btn.classList.remove('bot-btn-stop');
-                    btn.classList.add('bot-btn-start');
-                    statusDot.classList.remove('bg-red-500');
-                    statusDot.classList.add('bg-green-500');
-                    statusText.textContent = 'Bot Running';
-                    btnIcon.textContent = '⏸';
-                    btnText.textContent = 'Stop Bot';
-                } else {
-                    // Bot Stopped
-                    btn.classList.remove('bot-btn-start');
-                    btn.classList.add('bot-btn-stop');
-                    statusDot.classList.remove('bg-green-500');
-                    statusDot.classList.add('bg-red-500');
-                    statusText.textContent = 'Bot Stopped';
-                    btnIcon.textContent = '▶';
-                    btnText.textContent = 'Start Bot';
-                }
-            })
-            .catch(err => {
-                console.error('Error toggling bot:', err);
-                alert('Error toggling bot: ' + err);
-            });
-    }
-    
-    // Chart Tooltip on Hover - needs to be updated when chart data changes
-    function setupChartTooltip() {
-        const chartContainer = document.querySelector('.relative.h-72');
-        const chartSvg = document.querySelector('.relative.h-72 svg');
-        const chartPoints = document.querySelectorAll('circle.chart-point');
-        const tooltip = document.getElementById('chartTooltip');
-        const tooltipMonth = document.getElementById('tooltipMonth');
-        const tooltipValue = document.getElementById('tooltipValue');
-        
-        if (tooltip && chartContainer && chartSvg) {
-            // Handle mousemove over SVG to detect point hovers
-            chartSvg.addEventListener('mousemove', (e) => {
-                let isOverPoint = false;
-                
-                // Re-query points every time to get updated ones
-                document.querySelectorAll('circle.chart-point').forEach(point => {
-                    const cx = parseFloat(point.getAttribute('cx'));
-                    const cy = parseFloat(point.getAttribute('cy'));
-                    const r = parseFloat(point.getAttribute('r'));
-                    
-                    const svg = point.ownerSVGElement;
-                    const rect = svg.getBoundingClientRect();
-                    const svgViewBox = svg.viewBox.baseVal;
-                    
-                    const x = (e.clientX - rect.left) * (svgViewBox.width / rect.width) + svgViewBox.x;
-                    const y = (e.clientY - rect.top) * (svgViewBox.height / rect.height) + svgViewBox.y;
-                    
-                    const distance = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-                    
-                    if (distance <= r + 5) {
-                        const month = point.getAttribute('data-month');
-                        const value = point.getAttribute('data-value');
-                        
-                        tooltipMonth.textContent = month;
-                        tooltipValue.textContent = '€' + value;
-                        
-                        tooltip.classList.remove('hidden');
-                        tooltip.style.left = (e.clientX - 50) + 'px';
-                        tooltip.style.top = (e.clientY - 80) + 'px';
-                        
-                        isOverPoint = true;
-                    }
-                });
-                
-                if (!isOverPoint) {
-                    tooltip.classList.add('hidden');
-                }
-            }, true);
-            
-            chartSvg.addEventListener('mouseleave', () => {
-                tooltip.classList.add('hidden');
-            });
+
+        botRunning = isRunning;
+
+        if (isRunning) {
+            btn.classList.remove('bot-btn-stop');
+            btn.classList.add('bot-btn-start');
+            statusDot.classList.remove('bg-red-500');
+            statusDot.classList.add('bg-green-500');
+            statusText.textContent = 'Bot Running';
+            btnIcon.textContent = '⏸';
+            btnText.textContent = 'Stop Bot';
+        } else {
+            btn.classList.remove('bot-btn-start');
+            btn.classList.add('bot-btn-stop');
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-red-500');
+            statusText.textContent = 'Bot Stopped';
+            btnIcon.textContent = '▶';
+            btnText.textContent = 'Start Bot';
         }
     }
-    
-    // Initialize tooltip
-    setupChartTooltip();
-    
-    // Time Filter Buttons
-    const timeFilterBtns = document.querySelectorAll('.time-filter-btn');
-    
-    timeFilterBtns.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const range = btn.getAttribute('data-range');
-            
-            // Update active button
-            timeFilterBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Fetch new chart data
-            try {
-                const response = await fetch(`/hermes/api/chart-data/?range=${range}`);
-                const result = await response.json();
-                updateChart(result.data);
-            } catch (error) {
-                console.error('Error fetching chart data:', error);
-            }
-        });
-    });
-    
-    // Sync button state on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        fetch('/hermes/api/bot/status/')
+
+    function toggleBot() {
+        const endpoint = botRunning ? '/hermes/api/bot/stop/' : '/hermes/api/bot/start/';
+
+        // Update UI immediately — no waiting for network
+        updateBotUI(!botRunning);
+
+        fetch(endpoint, { method: 'POST' })
             .then(r => r.json())
             .then(data => {
-                const btn = document.getElementById('botToggleBtn');
-                const statusDot = document.getElementById('statusDot');
-                const statusText = document.getElementById('statusText');
-                const btnIcon = document.getElementById('botBtnIcon');
-                const btnText = document.getElementById('botBtnText');
-                
-                if (data.is_running) {
-                    btn.classList.remove('bot-btn-stop');
-                    btn.classList.add('bot-btn-start');
-                    statusDot.classList.remove('bg-red-500');
-                    statusDot.classList.add('bg-green-500');
-                    statusText.textContent = 'Bot Running';
-                    btnIcon.textContent = '⏸';
-                    btnText.textContent = 'Stop Bot';
-                } else {
-                    btn.classList.remove('bot-btn-start');
-                    btn.classList.add('bot-btn-stop');
-                    statusDot.classList.remove('bg-green-500');
-                    statusDot.classList.add('bg-red-500');
-                    statusText.textContent = 'Bot Stopped';
-                    btnIcon.textContent = '▶';
-                    btnText.textContent = 'Start Bot';
-                }
+                // Reconcile with actual server state
+                const actual = data.is_active !== undefined ? data.is_active : !botRunning;
+                if (actual !== botRunning) updateBotUI(actual);
             })
+            .catch(err => {
+                // Revert on error
+                updateBotUI(!botRunning);
+                console.error('Error toggling bot:', err);
+            });
+    }
+
+    // ========== CHART ==========
+    let chartDataPoints = [];  // stored so the mousemove handler can access them
+
+    function updateChart(timeRange) {
+        fetch('/hermes/api/chart/?range=' + encodeURIComponent(timeRange))
+            .then(res => res.json())
+            .then(response => {
+                const data = response.data;
+                if (!data || data.length === 0) return;
+
+                chartDataPoints = data;
+
+                const chartHeight = 264;   // single source of truth
+                const chartWidth = 800;
+                const steps = 5;
+
+                const maxValue = Math.max(...data.map(p => p.value));
+                const safeMax = maxValue === 0 ? 1 : maxValue;
+
+                // ---- SCALE POINTS ----
+                data.forEach((p, i) => {
+                    p.x = (i / (data.length - 1)) * chartWidth;
+                    const normalized = p.value / safeMax;
+                    p.y = chartHeight - (normalized * chartHeight);
+                });
+
+                // ---- DRAW LINE ----
+                const pathData = data.map((p, i) =>
+                    `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+                ).join(' ');
+
+                const closePath =
+                    `${pathData} L ${data[data.length - 1].x} ${chartHeight} ` +
+                    `L ${data[0].x} ${chartHeight} Z`;
+
+                document.getElementById('chartFill').setAttribute('d', closePath);
+                document.getElementById('chartLine').setAttribute('d', pathData);
+
+                // ---- GRID ----
+                const grid = document.getElementById('chartGrid');
+                grid.innerHTML = '';
+
+                for (let i = 0; i <= steps; i++) {
+                    const y = (chartHeight / steps) * i;
+
+                    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("x1", "0");
+                    line.setAttribute("x2", "800");
+                    line.setAttribute("y1", y);
+                    line.setAttribute("y2", y);
+                    line.setAttribute("stroke", "#1e293b");
+                    line.setAttribute("stroke-width", i === steps ? "1.5" : "1");
+                    line.setAttribute("opacity", i === steps ? "0.8" : "0.5");
+
+                    grid.appendChild(line);
+                }
+
+                // ---- Y AXIS VALUES ----
+                const yAxis = document.getElementById('chartYAxis');
+                yAxis.innerHTML = '';
+
+                for (let i = 0; i <= steps; i++) {
+                    const value = (safeMax / steps) * (steps - i);
+                    const y = (chartHeight / steps) * i;
+
+                    const span = document.createElement('span');
+                    span.textContent = value.toFixed(0);
+                    span.style.position = 'absolute';
+                    span.style.top = (y - 8) + 'px';
+                    span.style.left = '0px';
+
+                    yAxis.appendChild(span);
+                }
+
+                // ---- X AXIS LABELS ----
+                const labelsDiv = document.getElementById('chartLabels');
+                labelsDiv.innerHTML = '';
+
+                const maxLabels = 8;
+                const stepX = Math.max(1, Math.floor(data.length / maxLabels));
+
+                data.forEach((point, i) => {
+                    if (i % stepX === 0 || i === data.length - 1) {
+                        const span = document.createElement('span');
+                        span.className = 'absolute whitespace-nowrap text-xs';
+                        span.textContent = point.label;
+                        span.style.left = ((point.x + 20) / 820) * 100 + '%';
+                        span.style.transform = 'translateX(-50%)';
+                        labelsDiv.appendChild(span);
+                    }
+                });
+            })
+            .catch(err => console.error('Error updating chart:', err));
+    }
+
+
+
+    // Crosshair: track mouse X, find closest point, show vertical line + popup
+    (function() {
+        const chartContainer = document.querySelector('#profitChart').parentElement;
+        const crosshair = document.getElementById('chartCrosshair');
+        const dot = document.getElementById('chartDot');
+        const popup = document.getElementById('chartPopup');
+
+        chartContainer.addEventListener('mousemove', function(e) {
+            if (!chartDataPoints.length) return;
+
+            const rect = chartContainer.getBoundingClientRect();
+            const mouseXPct = (e.clientX - rect.left) / rect.width;
+            // SVG viewBox is -20 to 800 (820 wide), map pixel % to SVG x
+            const svgX = -20 + mouseXPct * 820;
+
+            // Find closest data point to mouse X
+            let closest = chartDataPoints[0];
+            let closestDist = Math.abs(svgX - closest.x);
+            for (let i = 1; i < chartDataPoints.length; i++) {
+                const dist = Math.abs(svgX - chartDataPoints[i].x);
+                if (dist < closestDist) {
+                    closest = chartDataPoints[i];
+                    closestDist = dist;
+                }
+            }
+
+            // Position crosshair vertical line (convert SVG x to %)
+            const linePct = ((closest.x + 20) / 820) * 100;
+            crosshair.classList.remove('hidden');
+            crosshair.style.left = linePct + '%';
+
+            // Position dot on the line at the point's Y
+            const dotYPct = (closest.y / 280) * 100;
+            dot.style.top = dotYPct + '%';
+
+            const profit = closest.bucket_profit;
+            const isPositive = profit >= 0;
+            const dotColor = closest.trades_count > 0
+                ? (isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)')
+                : 'rgb(232, 173, 58)';
+            dot.style.background = dotColor;
+            dot.style.borderColor = dotColor;
+
+            // Popup content
+            const profitStr = closest.trades_count > 0
+                ? ((isPositive ? '+' : '') + profit.toFixed(2))
+                : '0.00';
+            const profitColor = isPositive ? 'color: rgb(74, 222, 128)' : 'color: rgb(248, 113, 113)';
+
+            document.getElementById('popupLabel').textContent = closest.label || '';
+            document.getElementById('popupProfit').innerHTML = '<span style="' + profitColor + '">' + profitStr + '</span>';
+            document.getElementById('popupTrades').textContent = closest.trades_count;
+            document.getElementById('popupCumulative').textContent = closest.value.toFixed(2);
+
+            // Position popup (flip to left side if near the right edge)
+            popup.classList.remove('hidden');
+            const popupW = popup.offsetWidth || 160;
+            const pxLeft = (linePct / 100) * rect.width;
+            if (pxLeft + popupW + 16 > rect.width) {
+                popup.style.left = (pxLeft - popupW - 12) + 'px';
+            } else {
+                popup.style.left = (pxLeft + 12) + 'px';
+            }
+            popup.style.top = Math.max(0, (dotYPct / 100) * rect.height - 30) + 'px';
+        });
+
+        chartContainer.addEventListener('mouseleave', function() {
+            crosshair.classList.add('hidden');
+            popup.classList.add('hidden');
+        });
+    })();
+
+    // ========== ON DOM READY ==========
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sync bot button state
+        fetch('/hermes/api/bot/status/')
+            .then(r => r.json())
+            .then(data => updateBotUI(data.is_running))
             .catch(err => console.error('Error syncing bot status:', err));
-        
+
+        // Initial chart load
+        let activeChartRange = '30M';
+        updateChart(activeChartRange);
+
+        // Time range button clicks (single listener, correct URL)
+        document.querySelectorAll('.time-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.time-filter-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-yellow-500/20', 'text-yellow-400');
+                    b.classList.add('hover:bg-slate-700/50', 'text-slate-400');
+                });
+                btn.classList.add('active', 'bg-yellow-500/20', 'text-yellow-400');
+                btn.classList.remove('hover:bg-slate-700/50', 'text-slate-400');
+                activeChartRange = btn.dataset.range;
+                updateChart(activeChartRange);
+            });
+        });
+
+        // Refresh chart every 2 seconds to show new trades in real time
+        setInterval(function() {
+            updateChart(activeChartRange);
+        }, 2000);
+
         // Refresh trades table every 2 seconds
         setInterval(function() {
             fetch('/hermes/api/trades/')
@@ -690,13 +752,13 @@
                 .then(data => {
                     const tbody = document.querySelector('table tbody');
                     if (!tbody || !data.trades) return;
-                    
+
                     if (data.count === 0) {
                         tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No trades yet</td></tr>';
                     } else {
                         let html = '';
                         data.trades.forEach(trade => {
-                            const opClass = trade.operation === 'BUY' 
+                            const opClass = trade.operation === 'BUY'
                                 ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                 : 'bg-red-500/10 text-red-400 border-red-500/20';
                             html += `<tr class="hover:bg-white/5">
@@ -721,161 +783,71 @@
                 })
                 .catch(err => console.error('Error refreshing trades:', err));
         }, 2000);
-        
-        // Refresh metrics (risk level, earnings, win rate) every 2 seconds
+
+        // Refresh market rates every 2 seconds
+        setInterval(function() {
+            fetch('/hermes/api/prices/')
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('market-rates-body');
+                    if (!tbody || !data.prices) return;
+
+                    if (data.prices.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No price data available</td></tr>';
+                    } else {
+                        let html = '';
+                        data.prices.forEach(p => {
+                            html += `<tr class="hover:bg-white/5">
+                                <td class="py-2.5">
+                                    <div class="w-8 h-8 rounded-full ${p.color} flex items-center justify-center text-base font-bold shadow-lg">${p.icon}</div>
+                                </td>
+                                <td class="py-2.5 font-semibold text-center">${p.symbol}</td>
+                                <td class="py-2.5 text-sm text-slate-400 text-center">${p.name}</td>
+                                <td class="py-2.5 text-slate-300 text-sm text-center">${p.bid}<br/>${p.ask}</td>
+                                <td class="py-2.5 text-center font-semibold">${p.price}</td>
+                            </tr>`;
+                        });
+                        tbody.innerHTML = html;
+                    }
+                })
+                .catch(err => console.error('Error refreshing market rates:', err));
+        }, 2000);
+
+        // Refresh metrics every 2 seconds
         setInterval(function() {
             fetch('/hermes/api/metrics/')
                 .then(r => r.json())
                 .then(data => {
-                    // Update Risk Level
-                    const riskElements = document.querySelectorAll('[data-metric="risk-level"]');
-                    riskElements.forEach(el => {
+                    document.querySelectorAll('[data-metric="risk-level"]').forEach(el => {
                         el.textContent = data.risk_level + '%';
                     });
-                    
-                    // Update Total Earnings
-                    const earningsElements = document.querySelectorAll('[data-metric="earnings"]');
-                    earningsElements.forEach(el => {
+                    document.querySelectorAll('[data-metric="earnings"]').forEach(el => {
                         el.textContent = '€' + data.earnings;
                     });
-                    
-                    // Update Win Rate
-                    const winRateElements = document.querySelectorAll('[data-metric="win-rate"]');
-                    winRateElements.forEach(el => {
+                    document.querySelectorAll('[data-metric="win-rate"]').forEach(el => {
                         el.textContent = '↑ ' + data.win_rate + '%';
                     });
-                    
-                    // Update Trade Count
-                    const tradeCountElements = document.querySelectorAll('[data-metric="trade-count"]');
-                    tradeCountElements.forEach(el => {
+                    document.querySelectorAll('[data-metric="trade-count"]').forEach(el => {
                         el.textContent = data.total_trades + ' trades';
                     });
-                    
-                    // Update Portfolio Value
-                    const portfolioElements = document.querySelectorAll('[data-metric="portfolio-value"]');
-                    portfolioElements.forEach(el => {
+                    document.querySelectorAll('[data-metric="portfolio-value"]').forEach(el => {
                         el.textContent = '€' + data.portfolio_value;
                     });
-                    
-                    // Update progress wheel with win rate
+
                     const winRateValue = parseFloat(data.win_rate);
                     const progressCircle = document.getElementById('progressCircle');
                     const winRateDisplay = document.getElementById('winRateDisplay');
-                    
+
                     if (progressCircle) {
-                        // Calculate stroke-dashoffset: max 440, so offset = 440 * (1 - percentage/100)
                         const offset = 440 * (1 - winRateValue / 100);
                         progressCircle.style.strokeDashoffset = offset;
                     }
-                    
                     if (winRateDisplay) {
                         winRateDisplay.textContent = winRateValue.toFixed(1) + '%';
                     }
                 })
                 .catch(err => console.error('Error refreshing metrics:', err));
         }, 2000);
-    });
-
-    // Chart data loading and rendering
-    function updateChart(timeRange = '1D') {
-        fetch(`/hermes/api/chart/?range=${timeRange}`)
-            .then(res => res.json())
-            .then(response => {
-                const data = response.data;
-                if (!data || data.length === 0) return;
-
-                // Generate SVG path for line and fill
-                let pathData = data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-                const closePath = `${pathData} L ${data[data.length-1].x} 280 L ${data[0].x} 280 Z`;
-
-                // Update paths
-                document.getElementById('chartFill').setAttribute('d', closePath);
-                document.getElementById('chartLine').setAttribute('d', pathData);
-
-                // Update points
-                const pointsGroup = document.getElementById('chartPoints');
-                pointsGroup.innerHTML = '';
-
-                data.forEach((point, i) => {
-                    // Visible point
-                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circle.setAttribute('cx', point.x);
-                    circle.setAttribute('cy', point.y);
-                    circle.setAttribute('r', '4');
-                    circle.setAttribute('fill', 'rgb(232, 173, 58)');
-                    
-                    // Invisible hitarea
-                    const hoverCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    hoverCircle.setAttribute('cx', point.x);
-                    hoverCircle.setAttribute('cy', point.y);
-                    hoverCircle.setAttribute('r', '12');
-                    hoverCircle.setAttribute('fill', 'transparent');
-                    hoverCircle.style.cursor = 'pointer';
-                    
-                    // Tooltip on hover
-                    hoverCircle.addEventListener('mouseenter', (e) => {
-                        const tooltip = document.getElementById('chartTooltip');
-                        tooltip.classList.remove('hidden');
-                        document.getElementById('tooltipLabel').textContent = point.label || '';
-                        document.getElementById('tooltipValue').textContent = '€' + point.value.toFixed(2);
-                        document.getElementById('tooltipTrades').textContent = point.trades_count;
-                        tooltip.style.left = (e.pageX + 10) + 'px';
-                        tooltip.style.top = (e.pageY + 10) + 'px';
-                    });
-                    
-                    hoverCircle.addEventListener('mousemove', (e) => {
-                        const tooltip = document.getElementById('chartTooltip');
-                        tooltip.style.left = (e.pageX + 10) + 'px';
-                        tooltip.style.top = (e.pageY + 10) + 'px';
-                    });
-                    
-                    hoverCircle.addEventListener('mouseleave', () => {
-                        document.getElementById('chartTooltip').classList.add('hidden');
-                    });
-                    
-                    pointsGroup.appendChild(circle);
-                    pointsGroup.appendChild(hoverCircle);
-                });
-
-                // Update labels - show only every Nth label to avoid overflow
-                const labelsDiv = document.getElementById('chartLabels');
-                labelsDiv.innerHTML = '';
-                
-                // Determine how many labels to show (max 8)
-                const maxLabels = 8;
-                const step = Math.max(1, Math.floor(data.length / maxLabels));
-                
-                data.forEach((point, i) => {
-                    // Only show every Nth label
-                    if (i % step === 0 || i === data.length - 1) {
-                        const span = document.createElement('span');
-                        span.className = 'absolute whitespace-nowrap text-xs';
-                        span.textContent = point.label;
-                        span.style.left = ((point.x / 800) * 100) + '%';
-                        span.style.transform = 'translateX(-50%)';
-                        labelsDiv.appendChild(span);
-                    }
-                });
-            })
-            .catch(err => console.error('Error updating chart:', err));
-    }
-
-    // Initial chart load
-    document.addEventListener('DOMContentLoaded', () => {
-        updateChart('1D');
-        
-        // Time range button clicks
-        document.querySelectorAll('.time-filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.time-filter-btn').forEach(b => {
-                    b.classList.remove('active', 'bg-yellow-500/20', 'text-yellow-400');
-                    b.classList.add('hover:bg-slate-700/50', 'text-slate-400');
-                });
-                btn.classList.add('active', 'bg-yellow-500/20', 'text-yellow-400');
-                btn.classList.remove('hover:bg-slate-700/50', 'text-slate-400');
-                updateChart(btn.dataset.range);
-            });
-        });
     });
 
 </script>
