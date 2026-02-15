@@ -443,14 +443,12 @@
                     </div>
                 </div>
                 <div class="relative h-72">
-                    <svg id="profitChart" class="w-full h-full" viewBox="-20 0 820 264" preserveAspectRatio="none">
+                    <svg id="profitChart" class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
                         <defs>
                             <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="rgb(232, 173, 58)" stop-opacity="0.7" />
-                                <stop offset="60%" stop-color="rgb(232, 173, 58)" stop-opacity="0.3" />
-                                <stop offset="100%" stop-color="rgb(232, 173, 58)" stop-opacity="0" />
+                                <stop offset="0%" stop-color="rgb(212, 149, 42)" stop-opacity="0.3" />
+                                <stop offset="100%" stop-color="rgb(212, 149, 42)" stop-opacity="0" />
                             </linearGradient>
-
                             <filter id="glow">
                                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                                 <feMerge>
@@ -459,6 +457,7 @@
                                 </feMerge>
                             </filter>
                         </defs>
+
                         <g id="chartGrid"></g>
                         <path id="chartFill" fill="url(#chartGradient)" />
                         <path id="chartLine" fill="none" stroke="rgb(232, 173, 58)" stroke-width="3" filter="url(#glow)" />
@@ -475,8 +474,7 @@
                     </div>
                     <div id="chartLabels" class="absolute bottom-0 left-0 right-0 text-xs text-slate-500 relative z-50" style="height: 16px; overflow: hidden;"></div>
                     <div id="chartYAxis"
-                        class="absolute left-0 text-xs text-slate-500 pointer-events-none"
-                        style="top: 0px; height: 264px; width: 40px;">
+                        style="position:absolute; left:0; top:0; height:264px; width:50px; pointer-events:none; font-size:12px; color:#94a3b8;">
                     </div>
                 </div>
             </section>
@@ -557,22 +555,35 @@
                 const data = response.data;
                 if (!data || data.length === 0) return;
 
-                // Store original data
                 chartDataPoints = data;
 
-                const chartHeight = 264;
+                const chartHeight = 264;   // single source of truth
                 const chartWidth = 800;
+                const steps = 5;
 
-                // ---- PROPER Y SCALING (START AT 0) ----
                 const maxValue = Math.max(...data.map(p => p.value));
                 const safeMax = maxValue === 0 ? 1 : maxValue;
 
-                // ---- DYNAMIC Y AXIS ----
-                const yAxis = document.getElementById('chartYAxis');
-                yAxis.innerHTML = '';
+                // ---- SCALE POINTS ----
+                data.forEach((p, i) => {
+                    p.x = (i / (data.length - 1)) * chartWidth;
+                    const normalized = p.value / safeMax;
+                    p.y = chartHeight - (normalized * chartHeight);
+                });
 
-                const steps = 5;
-                // ---- GRID LINES ----
+                // ---- DRAW LINE ----
+                const pathData = data.map((p, i) =>
+                    `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
+                ).join(' ');
+
+                const closePath =
+                    `${pathData} L ${data[data.length - 1].x} ${chartHeight} ` +
+                    `L ${data[0].x} ${chartHeight} Z`;
+
+                document.getElementById('chartFill').setAttribute('d', closePath);
+                document.getElementById('chartLine').setAttribute('d', pathData);
+
+                // ---- GRID ----
                 const grid = document.getElementById('chartGrid');
                 grid.innerHTML = '';
 
@@ -585,11 +596,15 @@
                     line.setAttribute("y1", y);
                     line.setAttribute("y2", y);
                     line.setAttribute("stroke", "#1e293b");
-                    line.setAttribute("stroke-width", i === steps ? "1.5" : "1"); 
+                    line.setAttribute("stroke-width", i === steps ? "1.5" : "1");
                     line.setAttribute("opacity", i === steps ? "0.8" : "0.5");
 
                     grid.appendChild(line);
                 }
+
+                // ---- Y AXIS VALUES ----
+                const yAxis = document.getElementById('chartYAxis');
+                yAxis.innerHTML = '';
 
                 for (let i = 0; i <= steps; i++) {
                     const value = (safeMax / steps) * (steps - i);
@@ -598,59 +613,33 @@
                     const span = document.createElement('span');
                     span.textContent = value.toFixed(0);
                     span.style.position = 'absolute';
+                    span.style.top = (y - 8) + 'px';
                     span.style.left = '0px';
-                    span.style.top = (y - 8) + 'px'; // center text on grid line
 
                     yAxis.appendChild(span);
                 }
-
-
-                data.forEach((p, i) => {
-                    // Evenly space X across full width
-                    p.x = (i / (data.length - 1)) * chartWidth;
-
-                    // Force 0 at bottom
-                    const normalized = p.value / safeMax;
-                    p.y = chartHeight - (normalized * chartHeight);
-                });
-
-                // ---- DRAW LINE ----
-                const pathData = data.map((p, i) =>
-                    `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-                ).join(' ');
-
-                // Fill stops slightly above bottom (prevents overlap with labels)
-                const fillBottom = 264; // 280 - 16px label area
-                const closePath =
-                    `${pathData} L ${data[data.length - 1].x} ${fillBottom} ` +
-                    `L ${data[0].x} ${fillBottom} Z`;
-
-                document.getElementById('chartFill').setAttribute('d', closePath);
-                document.getElementById('chartLine').setAttribute('d', pathData);
 
                 // ---- X AXIS LABELS ----
                 const labelsDiv = document.getElementById('chartLabels');
                 labelsDiv.innerHTML = '';
 
                 const maxLabels = 8;
-                const step = Math.max(1, Math.floor(data.length / maxLabels));
+                const stepX = Math.max(1, Math.floor(data.length / maxLabels));
 
                 data.forEach((point, i) => {
-                    if (i % step === 0 || i === data.length - 1) {
+                    if (i % stepX === 0 || i === data.length - 1) {
                         const span = document.createElement('span');
                         span.className = 'absolute whitespace-nowrap text-xs';
                         span.textContent = point.label;
-
-                        // FIX alignment (correct for viewBox -20 offset)
                         span.style.left = ((point.x + 20) / 820) * 100 + '%';
                         span.style.transform = 'translateX(-50%)';
-
                         labelsDiv.appendChild(span);
                     }
                 });
             })
-        .catch(err => console.error('Error updating chart:', err));
-}
+            .catch(err => console.error('Error updating chart:', err));
+    }
+
 
 
     // Crosshair: track mouse X, find closest point, show vertical line + popup
@@ -685,7 +674,7 @@
             crosshair.style.left = linePct + '%';
 
             // Position dot on the line at the point's Y
-            const dotYPct = (closest.y / chartHeight) * 100;
+            const dotYPct = (closest.y / 280) * 100;
             dot.style.top = dotYPct + '%';
 
             const profit = closest.bucket_profit;
