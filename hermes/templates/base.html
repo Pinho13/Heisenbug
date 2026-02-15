@@ -82,6 +82,53 @@
             transform: scale(0.95);
         }
         
+        /* Bot Button Styles */
+        .bot-btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: 2px solid #b91c1c;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        }
+        
+        .bot-btn-stop:hover {
+            box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+        }
+        
+        .bot-btn-start {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: 2px solid #15803d;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+        }
+        
+        .bot-btn-start:hover {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        }
+        
+        /* Time Filter Buttons */
+        .time-filter-btn {
+            background: rgba(51, 65, 85, 0.5);
+            color: #cbd5e1;
+            border: 1px solid #475569;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .time-filter-btn:hover {
+            background: rgba(71, 85, 105, 0.7);
+            border-color: #64748b;
+            color: white;
+        }
+        
+        .time-filter-btn.active {
+            background: linear-gradient(135deg, #e8ad3a 0%, #d4952a 100%);
+            border-color: #c48425;
+            color: white;
+            box-shadow: 0 0 15px rgba(232, 173, 58, 0.3);
+        }
+        
         /* Falling animation on page load */
         @keyframes fallInPlace {
             0% {
@@ -119,6 +166,24 @@
             filter: blur(40px);
             transform: translate(-50%, -50%);
         }
+        
+        /* Chart Tooltip */
+        #chartTooltip {
+            background: rgba(26, 26, 46, 0.95) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(232, 173, 58, 0.3) !important;
+            position: fixed !important;
+            z-index: 9999 !important;
+            pointer-events: none !important;
+            white-space: nowrap;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+        }
+        
+        #chartTooltip.hidden {
+            display: none !important;
+        }
+        }
     </style>
 <body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
 <div class="mouse-glow" id="mouseGlow"></div>
@@ -142,7 +207,7 @@
             <div class="flex items-center gap-4">
                 <div class="text-center hidden md:block">
                     <p class="text-slate-400 text-xs">Portfolio Value</p>
-                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent">€50,000</span>
+                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent" data-metric="portfolio-value">€{{ portfolio_value }}</span>
                 </div>
                 <a href="{% url 'hermes:login' %}" class="w-12 h-12 rounded-full gradient-gold flex items-center justify-center text-sm font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-lg">L</a>
             </div>
@@ -210,14 +275,14 @@
             <!-- Earnings -->
             <section class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
                 <h2 class="text-xl font-bold mb-3">Total Earnings</h2>
-                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">$6,078.76</div>
-                <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">↑ 48%</span> vs last month</p>
+                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2" data-metric="earnings">€{{ total_earnings|default:"0.00" }}</div>
+                <p class="text-sm text-slate-400 mb-4">Win Rate: <span class="text-green-400 font-semibold" data-metric="win-rate">↑ {{ win_rate|default:"0" }}%</span> (<span data-metric="trade-count">{{ total_trades|default:"0" }} trades</span>)</p>
 
                 <div class="flex justify-center flex-1 items-center">
                     <div class="relative w-32 h-32">
                         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
                             <circle cx="80" cy="80" r="70" stroke="#d4952a" stroke-width="16" fill="none" opacity="0.3" />
-                            <circle cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(212,149,42,0.5)]" />
+                            <circle id="progressCircle" cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(212,149,42,0.5)]" />
                             <defs>
                                 <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" style="stop-color:#e8ad3a" />
@@ -226,7 +291,7 @@
                             </defs>
                         </svg>
                         <div class="absolute inset-0 flex items-center justify-center">
-                            <span class="text-3xl font-bold">80%</span>
+                            <span class="text-3xl font-bold" id="winRateDisplay">{{ win_rate|default:"0" }}%</span>
                         </div>
                     </div>
                 </div>
@@ -272,16 +337,38 @@
                 </table>
             </section>
 
-            <!-- Currency -->
-            <aside class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+            <!-- Bot Control -->
+            <aside class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
 
-                <!-- Header with Search -->
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold mb-3">Find Currencies</h2>
+                <!-- Header -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-4">Trading Bot</h2>
+                    
+                    <!-- Bot Status -->
+                    <div id="botStatus" class="flex items-center gap-2 mb-6 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                        <div id="statusDot" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                        <span id="statusText" class="text-sm font-medium text-slate-300">Bot Stopped</span>
+                    </div>
+                </div>
 
-                    <div class="relative">
+                <!-- Bot Control Button -->
+                <div class="mb-6">
+                    <button id="botToggleBtn" class="bot-btn-stop w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 hover:shadow-lg active:scale-95" onclick="toggleBot()">
+                        <span class="flex items-center justify-center gap-2">
+                            <span id="botBtnIcon">▶</span>
+                            <span id="botBtnText">Start Bot</span>
+                        </span>
+                    </button>
+                </div>
+                
+                <!-- Selected Currencies -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3">Trading Pairs</h3>
+                    
+                    <!-- Currency Search -->
+                    <div class="relative mb-4">
                         <svg
-                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b] pointer-events-none z-10"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none z-10"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -296,60 +383,35 @@
                         <input
                                 type="text"
                                 id="currencySearch"
-                                placeholder="BTC, EUR, ETH..."
-                                class="w-full glass-effect border border-slate-700/50 rounded-xl px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-2 focus:ring-[#e8ad3a]/30 transition-all"
+                                placeholder="Add BTC, EUR, ETH..."
+                                class="w-full glass-effect border border-slate-700/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-1 focus:ring-[#e8ad3a]/30 transition-all"
                                 autocomplete="off"
                         >
 
                         <!-- Dropdown Results -->
-                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-xl shadow-xl z-20 currency-dropdown max-h-[104px] overflow-y-auto">
+                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-lg shadow-xl z-20 currency-dropdown max-h-32 overflow-y-auto">
                             <!-- Results will be populated by JavaScript -->
                         </div>
                     </div>
-                </div>
-
-                <!-- Selected Currencies Icons -->
-                <div class="flex-1 flex items-center justify-center">
-                    <div id="selectedCurrencies" class="flex flex-wrap justify-evenly gap-4 w-full py-4">
+                    
+                    <div id="selectedCurrencies" class="flex flex-wrap gap-3">
                         <!-- Default: Bitcoin -->
                         <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
-                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-3xl font-bold shadow-xl cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-xl font-bold shadow-lg cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
                                 ₿
-                                <button class="remove-currency absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 </button>
                             </div>
-                            <span class="text-sm font-semibold text-slate-300">BTC</span>
+                            <span class="text-xs font-semibold text-slate-300">BTC</span>
                         </div>
                     </div>
                 </div>
-
-                <!-- Aimed Profit / Amount / Risk -->
-                <div class="grid grid-cols-3 gap-3 mt-4">
-
-                    <!-- Aimed Profit -->
-                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-[#e8ad3a]/50 transition-all">
-                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                            <div class="w-2.5 h-2.5 rounded-full gradient-gold"></div>
-                            <span class="font-medium">Target Profit</span>
-                        </div>
-                        <div class="relative mt-auto cursor-pointer" id="aimedProfitWrapper">
-                <span
-                        class="text-lg font-bold text-[#e8ad3a] transition-opacity"
-                        id="aimedProfitDisplay"
-                >
-                    €{{ aimed_profit|default:"0" }}
-                </span>
-                            <input
-                                    type="text"
-                                    id="aimedProfitInput"
-                                    value="{{ aimed_profit|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-[#e8ad3a]/50 focus:border-[#e8ad3a] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
-                    </div>
+                
+                <!-- Investment and Risk -->
+                <div class="grid grid-cols-2 gap-3">
 
                     <!-- Amount -->
                     <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-red-500/50 transition-all">
@@ -357,20 +419,13 @@
                             <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                             <span class="font-medium">Investment</span>
                         </div>
-                        <div class="relative mt-auto cursor-pointer" id="amountWrapper">
-                <span
-                        class="text-lg font-bold text-red-400 transition-opacity"
-                        id="amountDisplay"
-                >
-                    €{{ amount|default:"0" }}
-                </span>
-                            <input
-                                    type="text"
-                                    id="amountInput"
-                                    value="{{ amount|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-red-500/50 focus:border-red-500 outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
+                        <input
+                                type="text"
+                                id="amountInput"
+                                value="{{ amount|default:'0' }}"
+                                placeholder="Enter amount"
+                                class="mt-auto text-lg font-bold bg-slate-900/50 text-red-400 border-b-2 border-red-500/50 focus:border-red-500 outline-none focus:outline-none transition-all w-full px-0 py-1"
+                        />
                     </div>
 
                     <!-- Risk -->
@@ -380,7 +435,7 @@
                             <span class="font-medium">Risk Level</span>
                         </div>
                         <div class="relative mt-auto">
-                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay">0%</span>
+                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay" data-metric="risk-level">{{ risk_level|default:"0" }}%</span>
 
                             <input
                                     type="text"
@@ -388,19 +443,27 @@
                                     readonly
                                     tabindex="-1"
                                     class="absolute inset-0 text-lg font-bold bg-transparent border-none outline-none pointer-events-none opacity-0 w-full"
-                                    value="0"
+                                    value="{{ risk_level|default:'0' }}"
                             />
                         </div>
                     </div>
                 </div>
-
             </aside>
 
             <!-- History -->
             <section class="fall-in-5 col-span-3 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
-                <h2 class="text-xl font-bold mb-6">Profit Trend</h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Profit Trend</h2>
+                    <div class="flex gap-2">
+                        <button class="time-filter-btn active px-3 py-1 rounded-lg text-xs font-semibold transition-all bg-yellow-500/20 text-yellow-400" data-range="1D">1D</button>
+                        <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="1W">1W</button>
+                        <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="1M">1M</button>
+                        <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="3M">3M</button>
+                        <button class="time-filter-btn px-3 py-1 rounded-lg text-xs font-semibold transition-all hover:bg-slate-700/50 text-slate-400" data-range="ALL">All</button>
+                    </div>
+                </div>
                 <div class="relative h-72">
-                    <svg class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
+                    <svg id="profitChart" class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
                         <defs>
                             <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="0%" stop-color="rgb(212, 149, 42)" stop-opacity="0.3" />
@@ -419,55 +482,18 @@
                         <line x1="0" y1="168" x2="800" y2="168" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
                         <line x1="0" y1="224" x2="800" y2="224" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
 
-                        <path d="M 4 224 L 76 210 L 148 168 L 220 140 L 292 154 L 364 112 L 436 126 L 508 98 L 580 70 L 652 84 L 724 56 L 796 84 L 796 280 L 4 280 Z" fill="url(#chartGradient)" />
-                        <path d="M 4 224 L 76 210 L 148 168 L 220 140 L 292 154 L 364 112 L 436 126 L 508 98 L 580 70 L 652 84 L 724 56 L 796 84" fill="none" stroke="rgb(232, 173, 58)" stroke-width="3" filter="url(#glow)" />
-
-                        <circle class="chart-point" cx="4" cy="224" r="4" fill="rgb(232, 173, 58)" data-month="Jan" data-value="56" />
-                        <circle class="chart-point" cx="4" cy="224" r="12" fill="transparent" data-month="Jan" data-value="56" style="cursor:pointer" />
-                        <circle class="chart-point" cx="76" cy="210" r="4" fill="rgb(232, 173, 58)" data-month="Feb" data-value="70" />
-                        <circle class="chart-point" cx="76" cy="210" r="12" fill="transparent" data-month="Feb" data-value="70" style="cursor:pointer" />
-                        <circle class="chart-point" cx="148" cy="168" r="4" fill="rgb(232, 173, 58)" data-month="Mar" data-value="112" />
-                        <circle class="chart-point" cx="148" cy="168" r="12" fill="transparent" data-month="Mar" data-value="112" style="cursor:pointer" />
-                        <circle class="chart-point" cx="220" cy="140" r="4" fill="rgb(232, 173, 58)" data-month="Apr" data-value="140" />
-                        <circle class="chart-point" cx="220" cy="140" r="12" fill="transparent" data-month="Apr" data-value="140" style="cursor:pointer" />
-                        <circle class="chart-point" cx="292" cy="154" r="4" fill="rgb(232, 173, 58)" data-month="May" data-value="126" />
-                        <circle class="chart-point" cx="292" cy="154" r="12" fill="transparent" data-month="May" data-value="126" style="cursor:pointer" />
-                        <circle class="chart-point" cx="364" cy="112" r="4" fill="rgb(232, 173, 58)" data-month="Jun" data-value="168" />
-                        <circle class="chart-point" cx="364" cy="112" r="12" fill="transparent" data-month="Jun" data-value="168" style="cursor:pointer" />
-                        <circle class="chart-point" cx="436" cy="126" r="4" fill="rgb(232, 173, 58)" data-month="Jul" data-value="154" />
-                        <circle class="chart-point" cx="436" cy="126" r="12" fill="transparent" data-month="Jul" data-value="154" style="cursor:pointer" />
-                        <circle class="chart-point" cx="508" cy="98" r="4" fill="rgb(232, 173, 58)" data-month="Aug" data-value="182" />
-                        <circle class="chart-point" cx="508" cy="98" r="12" fill="transparent" data-month="Aug" data-value="182" style="cursor:pointer" />
-                        <circle class="chart-point" cx="580" cy="70" r="4" fill="rgb(232, 173, 58)" data-month="Sep" data-value="210" />
-                        <circle class="chart-point" cx="580" cy="70" r="12" fill="transparent" data-month="Sep" data-value="210" style="cursor:pointer" />
-                        <circle class="chart-point" cx="652" cy="84" r="4" fill="rgb(232, 173, 58)" data-month="Oct" data-value="196" />
-                        <circle class="chart-point" cx="652" cy="84" r="12" fill="transparent" data-month="Oct" data-value="196" style="cursor:pointer" />
-                        <circle class="chart-point" cx="724" cy="56" r="4" fill="rgb(232, 173, 58)" data-month="Nov" data-value="224" />
-                        <circle class="chart-point" cx="724" cy="56" r="12" fill="transparent" data-month="Nov" data-value="224" style="cursor:pointer" />
-                        <circle class="chart-point" cx="796" cy="84" r="4" fill="rgb(232, 173, 58)" data-month="Dec" data-value="196" />
-                        <circle class="chart-point" cx="796" cy="84" r="12" fill="transparent" data-month="Dec" data-value="196" style="cursor:pointer" />
+                        <path id="chartFill" fill="url(#chartGradient)" />
+                        <path id="chartLine" fill="none" stroke="rgb(232, 173, 58)" stroke-width="3" filter="url(#glow)" />
+                        <g id="chartPoints"></g>
                     </svg>
                     <!-- Tooltip -->
                     <div id="chartTooltip" class="hidden absolute pointer-events-none glass-effect border border-[#e8ad3a]/50 rounded-lg px-4 py-3 shadow-xl z-30 text-sm glow-gold">
-                        <div class="font-bold text-[#e8ad3a]" id="tooltipMonth"></div>
-                        <div class="text-slate-300 mt-1">Value: <span class="font-bold text-white" id="tooltipValue"></span></div>
-                        <div class="text-slate-500 text-xs mt-1">📊 Data updated</div>
+                        <div class="font-bold text-[#e8ad3a]" id="tooltipLabel"></div>
+                        <div class="text-slate-300 mt-1">Profit: <span class="font-bold text-white" id="tooltipValue"></span></div>
+                        <div class="text-slate-500 text-xs mt-1">Trades: <span id="tooltipTrades"></span></div>
                     </div>
-                    <div class="absolute bottom-0 left-0 right-0 text-xs text-slate-500" style="height: 16px">
-                        <span class="absolute" style="left: 2.93%; transform: translateX(-50%)">Jan</span>
-                        <span class="absolute" style="left: 11.71%; transform: translateX(-50%)">Feb</span>
-                        <span class="absolute" style="left: 20.49%; transform: translateX(-50%)">Mar</span>
-                        <span class="absolute" style="left: 29.27%; transform: translateX(-50%)">Apr</span>
-                        <span class="absolute" style="left: 38.05%; transform: translateX(-50%)">May</span>
-                        <span class="absolute" style="left: 46.83%; transform: translateX(-50%)">Jun</span>
-                        <span class="absolute" style="left: 55.61%; transform: translateX(-50%)">Jul</span>
-                        <span class="absolute" style="left: 64.39%; transform: translateX(-50%)">Aug</span>
-                        <span class="absolute" style="left: 73.17%; transform: translateX(-50%)">Sep</span>
-                        <span class="absolute" style="left: 81.95%; transform: translateX(-50%)">Oct</span>
-                        <span class="absolute" style="left: 90.73%; transform: translateX(-50%)">Nov</span>
-                        <span class="absolute" style="left: 99.51%; transform: translateX(-50%)">Dec</span>
-                    </div>
-                    <div class="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-500">
+                    <div id="chartLabels" class="absolute bottom-0 left-0 right-0 text-xs text-slate-500" style="height: 16px; overflow: hidden;"></div>
+                    <div class="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-500 pointer-events-none">
                         <span>500</span>
                         <span>400</span>
                         <span>300</span>
@@ -492,6 +518,366 @@
         mouseGlow.style.left = e.clientX + 'px';
         mouseGlow.style.top = e.clientY + 'px';
     });
+    
+    // Bot Toggle Function
+    let botRunning = false;
+    
+    function toggleBot() {
+        const btn = document.getElementById('botToggleBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const btnIcon = document.getElementById('botBtnIcon');
+        const btnText = document.getElementById('botBtnText');
+        
+        // Check current status first
+        fetch('/hermes/api/bot/status/')
+            .then(r => r.json())
+            .then(data => {
+                const isRunning = data.is_running;
+                const endpoint = isRunning ? '/hermes/api/bot/stop/' : '/hermes/api/bot/start/';
+                
+                return fetch(endpoint, { method: 'POST' });
+            })
+            .then(r => r.json())
+            .then(data => {
+                // After toggling, fetch the new status
+                return fetch('/hermes/api/bot/status/').then(r => r.json());
+            })
+            .then(data => {
+                const isRunning = data.is_running;
+                
+                if (isRunning) {
+                    // Bot Started
+                    btn.classList.remove('bot-btn-stop');
+                    btn.classList.add('bot-btn-start');
+                    statusDot.classList.remove('bg-red-500');
+                    statusDot.classList.add('bg-green-500');
+                    statusText.textContent = 'Bot Running';
+                    btnIcon.textContent = '⏸';
+                    btnText.textContent = 'Stop Bot';
+                } else {
+                    // Bot Stopped
+                    btn.classList.remove('bot-btn-start');
+                    btn.classList.add('bot-btn-stop');
+                    statusDot.classList.remove('bg-green-500');
+                    statusDot.classList.add('bg-red-500');
+                    statusText.textContent = 'Bot Stopped';
+                    btnIcon.textContent = '▶';
+                    btnText.textContent = 'Start Bot';
+                }
+            })
+            .catch(err => {
+                console.error('Error toggling bot:', err);
+                alert('Error toggling bot: ' + err);
+            });
+    }
+    
+    // Chart Tooltip on Hover - needs to be updated when chart data changes
+    function setupChartTooltip() {
+        const chartContainer = document.querySelector('.relative.h-72');
+        const chartSvg = document.querySelector('.relative.h-72 svg');
+        const chartPoints = document.querySelectorAll('circle.chart-point');
+        const tooltip = document.getElementById('chartTooltip');
+        const tooltipMonth = document.getElementById('tooltipMonth');
+        const tooltipValue = document.getElementById('tooltipValue');
+        
+        if (tooltip && chartContainer && chartSvg) {
+            // Handle mousemove over SVG to detect point hovers
+            chartSvg.addEventListener('mousemove', (e) => {
+                let isOverPoint = false;
+                
+                // Re-query points every time to get updated ones
+                document.querySelectorAll('circle.chart-point').forEach(point => {
+                    const cx = parseFloat(point.getAttribute('cx'));
+                    const cy = parseFloat(point.getAttribute('cy'));
+                    const r = parseFloat(point.getAttribute('r'));
+                    
+                    const svg = point.ownerSVGElement;
+                    const rect = svg.getBoundingClientRect();
+                    const svgViewBox = svg.viewBox.baseVal;
+                    
+                    const x = (e.clientX - rect.left) * (svgViewBox.width / rect.width) + svgViewBox.x;
+                    const y = (e.clientY - rect.top) * (svgViewBox.height / rect.height) + svgViewBox.y;
+                    
+                    const distance = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+                    
+                    if (distance <= r + 5) {
+                        const month = point.getAttribute('data-month');
+                        const value = point.getAttribute('data-value');
+                        
+                        tooltipMonth.textContent = month;
+                        tooltipValue.textContent = '€' + value;
+                        
+                        tooltip.classList.remove('hidden');
+                        tooltip.style.left = (e.clientX - 50) + 'px';
+                        tooltip.style.top = (e.clientY - 80) + 'px';
+                        
+                        isOverPoint = true;
+                    }
+                });
+                
+                if (!isOverPoint) {
+                    tooltip.classList.add('hidden');
+                }
+            }, true);
+            
+            chartSvg.addEventListener('mouseleave', () => {
+                tooltip.classList.add('hidden');
+            });
+        }
+    }
+    
+    // Initialize tooltip
+    setupChartTooltip();
+    
+    // Time Filter Buttons
+    const timeFilterBtns = document.querySelectorAll('.time-filter-btn');
+    
+    timeFilterBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const range = btn.getAttribute('data-range');
+            
+            // Update active button
+            timeFilterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Fetch new chart data
+            try {
+                const response = await fetch(`/hermes/api/chart-data/?range=${range}`);
+                const result = await response.json();
+                updateChart(result.data);
+            } catch (error) {
+                console.error('Error fetching chart data:', error);
+            }
+        });
+    });
+    
+    // Sync button state on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/hermes/api/bot/status/')
+            .then(r => r.json())
+            .then(data => {
+                const btn = document.getElementById('botToggleBtn');
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const btnIcon = document.getElementById('botBtnIcon');
+                const btnText = document.getElementById('botBtnText');
+                
+                if (data.is_running) {
+                    btn.classList.remove('bot-btn-stop');
+                    btn.classList.add('bot-btn-start');
+                    statusDot.classList.remove('bg-red-500');
+                    statusDot.classList.add('bg-green-500');
+                    statusText.textContent = 'Bot Running';
+                    btnIcon.textContent = '⏸';
+                    btnText.textContent = 'Stop Bot';
+                } else {
+                    btn.classList.remove('bot-btn-start');
+                    btn.classList.add('bot-btn-stop');
+                    statusDot.classList.remove('bg-green-500');
+                    statusDot.classList.add('bg-red-500');
+                    statusText.textContent = 'Bot Stopped';
+                    btnIcon.textContent = '▶';
+                    btnText.textContent = 'Start Bot';
+                }
+            })
+            .catch(err => console.error('Error syncing bot status:', err));
+        
+        // Refresh trades table every 2 seconds
+        setInterval(function() {
+            fetch('/hermes/api/trades/')
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.querySelector('table tbody');
+                    if (!tbody || !data.trades) return;
+                    
+                    if (data.count === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No trades yet</td></tr>';
+                    } else {
+                        let html = '';
+                        data.trades.forEach(trade => {
+                            const opClass = trade.operation === 'BUY' 
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-red-500/10 text-red-400 border-red-500/20';
+                            html += `<tr class="hover:bg-white/5">
+                                <td class="py-2"><span class="text-sm text-slate-300">${trade.time}</span></td>
+                                <td class="py-2 font-medium text-center">${trade.pair}</td>
+                                <td class="py-2">
+                                    <div class="flex items-center justify-center gap-2 text-sm">
+                                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold ${opClass}">${trade.operation}</span>
+                                        <span class="text-slate-500">|</span>
+                                        <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        <span class="text-slate-300">${trade.status}</span>
+                                    </div>
+                                </td>
+                                <td class="py-2 text-slate-300 text-center">${parseFloat(trade.amount).toFixed(2)}</td>
+                                <td class="py-2 text-center font-medium">${parseFloat(trade.price).toFixed(5)}</td>
+                            </tr>`;
+                        });
+                        tbody.innerHTML = html;
+                    }
+                })
+                .catch(err => console.error('Error refreshing trades:', err));
+        }, 2000);
+        
+        // Refresh metrics (risk level, earnings, win rate) every 2 seconds
+        setInterval(function() {
+            fetch('/hermes/api/metrics/')
+                .then(r => r.json())
+                .then(data => {
+                    // Update Risk Level
+                    const riskElements = document.querySelectorAll('[data-metric="risk-level"]');
+                    riskElements.forEach(el => {
+                        el.textContent = data.risk_level + '%';
+                    });
+                    
+                    // Update Total Earnings
+                    const earningsElements = document.querySelectorAll('[data-metric="earnings"]');
+                    earningsElements.forEach(el => {
+                        el.textContent = '€' + data.earnings;
+                    });
+                    
+                    // Update Win Rate
+                    const winRateElements = document.querySelectorAll('[data-metric="win-rate"]');
+                    winRateElements.forEach(el => {
+                        el.textContent = '↑ ' + data.win_rate + '%';
+                    });
+                    
+                    // Update Trade Count
+                    const tradeCountElements = document.querySelectorAll('[data-metric="trade-count"]');
+                    tradeCountElements.forEach(el => {
+                        el.textContent = data.total_trades + ' trades';
+                    });
+                    
+                    // Update Portfolio Value
+                    const portfolioElements = document.querySelectorAll('[data-metric="portfolio-value"]');
+                    portfolioElements.forEach(el => {
+                        el.textContent = '€' + data.portfolio_value;
+                    });
+                    
+                    // Update progress wheel with win rate
+                    const winRateValue = parseFloat(data.win_rate);
+                    const progressCircle = document.getElementById('progressCircle');
+                    const winRateDisplay = document.getElementById('winRateDisplay');
+                    
+                    if (progressCircle) {
+                        // Calculate stroke-dashoffset: max 440, so offset = 440 * (1 - percentage/100)
+                        const offset = 440 * (1 - winRateValue / 100);
+                        progressCircle.style.strokeDashoffset = offset;
+                    }
+                    
+                    if (winRateDisplay) {
+                        winRateDisplay.textContent = winRateValue.toFixed(1) + '%';
+                    }
+                })
+                .catch(err => console.error('Error refreshing metrics:', err));
+        }, 2000);
+    });
+
+    // Chart data loading and rendering
+    function updateChart(timeRange = '1D') {
+        fetch(`/hermes/api/chart/?range=${timeRange}`)
+            .then(res => res.json())
+            .then(response => {
+                const data = response.data;
+                if (!data || data.length === 0) return;
+
+                // Generate SVG path for line and fill
+                let pathData = data.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                const closePath = `${pathData} L ${data[data.length-1].x} 280 L ${data[0].x} 280 Z`;
+
+                // Update paths
+                document.getElementById('chartFill').setAttribute('d', closePath);
+                document.getElementById('chartLine').setAttribute('d', pathData);
+
+                // Update points
+                const pointsGroup = document.getElementById('chartPoints');
+                pointsGroup.innerHTML = '';
+
+                data.forEach((point, i) => {
+                    // Visible point
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', point.x);
+                    circle.setAttribute('cy', point.y);
+                    circle.setAttribute('r', '4');
+                    circle.setAttribute('fill', 'rgb(232, 173, 58)');
+                    
+                    // Invisible hitarea
+                    const hoverCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    hoverCircle.setAttribute('cx', point.x);
+                    hoverCircle.setAttribute('cy', point.y);
+                    hoverCircle.setAttribute('r', '12');
+                    hoverCircle.setAttribute('fill', 'transparent');
+                    hoverCircle.style.cursor = 'pointer';
+                    
+                    // Tooltip on hover
+                    hoverCircle.addEventListener('mouseenter', (e) => {
+                        const tooltip = document.getElementById('chartTooltip');
+                        tooltip.classList.remove('hidden');
+                        document.getElementById('tooltipLabel').textContent = point.label || '';
+                        document.getElementById('tooltipValue').textContent = '€' + point.value.toFixed(2);
+                        document.getElementById('tooltipTrades').textContent = point.trades_count;
+                        tooltip.style.left = (e.pageX + 10) + 'px';
+                        tooltip.style.top = (e.pageY + 10) + 'px';
+                    });
+                    
+                    hoverCircle.addEventListener('mousemove', (e) => {
+                        const tooltip = document.getElementById('chartTooltip');
+                        tooltip.style.left = (e.pageX + 10) + 'px';
+                        tooltip.style.top = (e.pageY + 10) + 'px';
+                    });
+                    
+                    hoverCircle.addEventListener('mouseleave', () => {
+                        document.getElementById('chartTooltip').classList.add('hidden');
+                    });
+                    
+                    pointsGroup.appendChild(circle);
+                    pointsGroup.appendChild(hoverCircle);
+                });
+
+                // Update labels - show only every Nth label to avoid overflow
+                const labelsDiv = document.getElementById('chartLabels');
+                labelsDiv.innerHTML = '';
+                
+                // Determine how many labels to show (max 8)
+                const maxLabels = 8;
+                const step = Math.max(1, Math.floor(data.length / maxLabels));
+                
+                data.forEach((point, i) => {
+                    // Only show every Nth label
+                    if (i % step === 0 || i === data.length - 1) {
+                        const span = document.createElement('span');
+                        span.className = 'absolute whitespace-nowrap text-xs';
+                        span.textContent = point.label;
+                        span.style.left = ((point.x / 800) * 100) + '%';
+                        span.style.transform = 'translateX(-50%)';
+                        labelsDiv.appendChild(span);
+                    }
+                });
+            })
+            .catch(err => console.error('Error updating chart:', err));
+    }
+
+    // Initial chart load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateChart('1D');
+        
+        // Time range button clicks
+        document.querySelectorAll('.time-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.time-filter-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-yellow-500/20', 'text-yellow-400');
+                    b.classList.add('hover:bg-slate-700/50', 'text-slate-400');
+                });
+                btn.classList.add('active', 'bg-yellow-500/20', 'text-yellow-400');
+                btn.classList.remove('hover:bg-slate-700/50', 'text-slate-400');
+                updateChart(btn.dataset.range);
+            });
+        });
+    });
+
 </script>
 </body>
 </html>
