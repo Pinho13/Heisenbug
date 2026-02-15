@@ -207,7 +207,7 @@
             <div class="flex items-center gap-4">
                 <div class="text-center hidden md:block">
                     <p class="text-slate-400 text-xs">Portfolio Value</p>
-                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent">€50,000</span>
+                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent" data-metric="portfolio-value">€50,000</span>
                 </div>
                 <a href="{% url 'hermes:login' %}" class="w-12 h-12 rounded-full gradient-gold flex items-center justify-center text-sm font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-lg">L</a>
             </div>
@@ -764,6 +764,12 @@
                     const tradeCountElements = document.querySelectorAll('[data-metric="trade-count"]');
                     tradeCountElements.forEach(el => {
                         el.textContent = data.total_trades + ' trades';
+                    });
+                    
+                    // Update Portfolio Value
+                    const portfolioElements = document.querySelectorAll('[data-metric="portfolio-value"]');
+                    portfolioElements.forEach(el => {
+                        el.textContent = '€' + data.portfolio_value;
                     });
                     
                     // Update progress wheel with win rate
