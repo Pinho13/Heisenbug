@@ -58,6 +58,14 @@ class BotConfig(models.Model):
     cleanup_keep_count = models.IntegerField(
         default=100, help_text="Número de trades a manter no histórico")
 
+    # User preferences (persisted from frontend)
+    selected_currencies = models.CharField(
+        max_length=200, default='BTC,ETH,EUR,USD',
+        help_text="Comma-separated list of selected currency symbols")
+    investment_amount = models.DecimalField(
+        max_digits=20, decimal_places=2, default=0,
+        help_text="User's investment amount")
+
     class Meta:
         verbose_name = "Configuração do Bot"
 
@@ -84,6 +92,7 @@ class PriceSnapshot(models.Model):
     bid = models.DecimalField(max_digits=20, decimal_places=8)
     ask = models.DecimalField(max_digits=20, decimal_places=8)
     currency = models.CharField(max_length=10, default='USD')
+    source = models.CharField(max_length=30, default='uphold')
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

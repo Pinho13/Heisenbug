@@ -8,7 +8,6 @@ import random
 from django.db import transaction
 from django.utils import timezone
 from .uphold_api import UpholdAPIHandler
-from .trading_engine import PortfolioOptimizer
 from .risk_analyzer import TradeDecision
 from .cache import MarketDataCache
 from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot, UserBalance, AssetPool
@@ -34,134 +33,67 @@ class TradeBot:
         config = BotConfig.get_config()
         if not config.is_active: return []
 
-        # Get all available price snapshots dynamically
-        recent_snapshots = PriceSnapshot.objects.values('pair').distinct()
-        
-        tickers = {}
-        for snap in recent_snapshots:
-            pair = snap['pair']
-            s = PriceSnapshot.objects.filter(pair=pair).order_by('-timestamp').first()
-            if s: tickers[pair] = {'ask': s.ask, 'bid': s.bid}
+        # Load the latest snapshot per (pair, source) so we can compare sources
+        tickers_by_source = {}  # {pair: {source: {ask, bid}}}
+        for snap in PriceSnapshot.objects.values('pair', 'source').distinct():
+            pair, source = snap['pair'], snap['source']
+            latest = PriceSnapshot.objects.filter(pair=pair, source=source).order_by('-timestamp').first()
+            if latest:
+                tickers_by_source.setdefault(pair, {})[source] = {'ask': latest.ask, 'bid': latest.bid}
 
         balances = {b.currency: b.amount for b in UserBalance.objects.filter(user_id=self.user_id)}
-        
-        # Look for sell opportunities first (take profits on winning BUY positions)
-        executed = []
-        buy_trades = TradeHistory.objects.filter(user_id=self.user_id, status="EXECUTED", operation="BUY").order_by('-timestamp')[:50]
-        
-        for trade in buy_trades:
-            # Check if we should sell this position for profit
-            pair_parts = trade.pair.split('-')
-            if len(pair_parts) != 2: continue
-            
-            # We bought the second currency (pair_parts[1]), check if we can sell it at profit
-            currency_bought = pair_parts[1]
-            if currency_bought not in balances or balances[currency_bought] <= 0:
-                continue
-                
-            current_ticker = tickers.get(trade.pair)
-            if current_ticker and float(current_ticker['bid']) > float(trade.price_at_execution):
-                # Profitable sell opportunity! Sell what we bought back to original currency
-                amount_to_sell = min(balances[currency_bought], balances[currency_bought] * Decimal(str(config.trade_size_percentage or 0.1)))
-                
-                if amount_to_sell > 0:
-                    currency_to_get = pair_parts[0]
-                    decision = {
-                        'from': currency_bought,        # Sell EUR
-                        'to': currency_to_get,         # Get USD
-                        'amount': amount_to_sell,
-                        'p_from': Decimal('1'),        # 1 EUR
-                        'p_to': Decimal(str(current_ticker['bid'])),  # Gets this many USD
-                        'conf': 0.9,
-                        'pair': trade.pair
-                    }
-                    if self.execute_trade(decision):
-                        executed.append(decision)
-                    break  # Only sell one position per iteration
 
-        # Look for buy opportunities
-        opportunities = PortfolioOptimizer().find_all_opportunities(balances, tickers, config)
+        # Find arbitrage opportunities and execute BUY+SELL simultaneously
+        executed = []
+        opportunities = PortfolioOptimizer().find_all_opportunities(balances, tickers_by_source, config)
         for d in opportunities:
             if self.execute_trade(d):
                 executed.append(d)
-        
+
         return executed
 
     def execute_trade(self, d):
+        """Execute an arbitrage round-trip: buy at source A's ask, sell at source B's bid.
+
+        The round-trip works the same regardless of pair direction:
+          1. Buy the pair's base currency at the cheap source's ask
+          2. Sell it immediately at the expensive source's bid
+          returned = amount * sell_bid / buy_ask  (always in 'from' currency)
+        """
         try:
             with transaction.atomic():
-                # Determine operation type based on what we're trading
-                # The key insight: if we're trading d['from'] -> d['to']
-                # and the pair is "A-B" where we're selling A to get B, that's a SELL
-                
-                crypto_currencies = ['BTC', 'ETH', 'LTC', 'XRP', 'ADA']
-                
-                pair_parts = d['pair'].split('-') if '-' in d['pair'] else d['pair']
-                if isinstance(pair_parts, str):
-                    pair_parts = [d['pair'][:3], d['pair'][3:]] if len(d['pair']) > 3 else [d['pair']]
-                
-                # Determine operation:
-                # - If selling crypto (d['from'] is crypto) = SELL
-                # - If buying crypto (d['to'] is crypto) = BUY
-                # - If both fiat, check pair structure:
-                #   If d['from'] appears FIRST in pair (e.g., EUR-USD and from=EUR) = SELL
-                #   Otherwise = BUY
-                
-                if d['from'] in crypto_currencies:
-                    # Selling crypto
-                    op = "SELL"
-                elif d['to'] in crypto_currencies:
-                    # Buying crypto
-                    op = "BUY"
-                elif len(pair_parts) >= 2 and pair_parts[0] == d['from']:
-                    # Both fiat: if from currency is first in pair, we're selling it
-                    op = "SELL"
-                else:
-                    # Default: buying
-                    op = "BUY"
-                
+                buy_ask = d['buy_ask']
+                sell_bid = d['sell_bid']
+
                 bal_from = UserBalance.objects.select_for_update().get(user_id=self.user_id, currency=d['from'])
-                bal_to, _ = UserBalance.objects.select_for_update().get_or_create(user_id=self.user_id, currency=d['to'], defaults={'amount': 0})
+                if bal_from.amount < d['amount']:
+                    return False
 
-                if bal_from.amount < d['amount']: return False
+                # Round-trip: spend d['amount'], get back amount * (sell_bid / buy_ask)
+                # The ratio sell_bid/buy_ask > 1 guarantees profit (checked in optimizer)
+                returned = d['amount'] * sell_bid / buy_ask
+                profit = returned - d['amount']
 
-                received = (d['amount'] * d['p_from']) / d['p_to']
+                # Net effect on balance: spent d['amount'], got back 'returned'
                 bal_from.amount -= d['amount']
-                bal_to.amount += received
-                
+                bal_from.amount += returned
                 bal_from.save()
-                bal_to.save()
-                if bal_from.amount <= 0: bal_from.delete()
+                if bal_from.amount <= 0:
+                    bal_from.delete()
 
-                # Calculate profit for SELL trades
-                profit = None
-                if op == "SELL":
-                    # Get average buy price for the currency we're selling
-                    buy_trades_for_currency = TradeHistory.objects.filter(
-                        user_id=self.user_id,
-                        operation="BUY",
-                        pair__contains=d['from']  # Pair contains the currency we're selling
-                    ).order_by('-timestamp')[:20]
-                    
-                    if buy_trades_for_currency.exists():
-                        buy_prices = [float(t.price_at_execution) for t in buy_trades_for_currency]
-                        avg_buy_price = sum(buy_prices) / len(buy_prices) if buy_prices else float(d['p_to'])
-                        
-                        # Profit = (sell_price - avg_buy_price) * amount_sold
-                        profit = (float(d['p_to']) - avg_buy_price) * float(d['amount'])
-                    else:
-                        # No previous buys, assume profit is 0
-                        profit = 0
-                else:
-                    # BUY trades have 0 profit until they're sold
-                    profit = 0
-
+                # Record BUY leg
                 TradeHistory.objects.create(
-                    user_id=self.user_id, pair=d['pair'], operation=op, amount=d['amount'],
-                    price_at_execution=d['p_to'], status="EXECUTED", confidence_score=d['conf'],
-                    profit=profit
+                    user_id=self.user_id, pair=d['pair'], operation="BUY",
+                    amount=d['amount'], price_at_execution=buy_ask,
+                    status="EXECUTED", confidence_score=d['conf'], profit=0
                 )
-                print(f"✅ {op}: {d['from']} -> {d['to']} | Quantity: {received} | Profit: {profit}")
+                # Record SELL leg
+                TradeHistory.objects.create(
+                    user_id=self.user_id, pair=d['pair'], operation="SELL",
+                    amount=d['amount'], price_at_execution=sell_bid,
+                    status="EXECUTED", confidence_score=d['conf'], profit=profit
+                )
+                print(f"✅ ARB {d['pair']}: buy@{buy_ask} sell@{sell_bid} | spent={d['amount']} returned={returned:.2f} | profit={profit:.4f}")
                 return True
         except Exception as e:
             print(f"❌ Trade failed: {e}")
@@ -172,16 +104,22 @@ class TradeBot:
     def refresh_all_tickers(self):
         try:
             tickers = self.api.get_all_tickers() or []
-            allowed = ["BTC", "ETH", "EUR", "USD"]
+            # Use user-selected currencies from BotConfig instead of hardcoded list
+            config = BotConfig.get_config()
+            allowed = [c.strip() for c in config.selected_currencies.split(',') if c.strip()]
+            if not allowed:
+                allowed = ["BTC", "ETH", "EUR", "USD"]
             for t in tickers:
                 p, c = t.get('pair'), t.get('currency')
                 if p and any(m in p for m in allowed):
                     try:
                         ask, bid = Decimal(str(t['ask'])), Decimal(str(t['bid']))
-                        PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c)
-                        # Add slight variation to simulate market movement
-                        v = ask * Decimal(random.uniform(0.01, 0.05))
-                        PriceSnapshot.objects.create(pair=p, bid=bid + v, ask=ask - v, currency=c)
+                        PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c, source='uphold')
+                        # Simulate a second exchange whose price level is slightly
+                        # shifted from the real one (same spread, different mid-price).
+                        # Real cross-exchange differences are typically 0.05–0.15%.
+                        shift = ask * Decimal(random.uniform(-0.0015, 0.0015))
+                        PriceSnapshot.objects.create(pair=p, bid=bid + shift, ask=ask + shift, currency=c, source='simulated')
                     except Exception as e:
                         logger.warning(f"Failed to create snapshot for {p}: {e}")
                         continue
@@ -191,16 +129,29 @@ class TradeBot:
         return True
 
 class PortfolioOptimizer:
-    def find_all_opportunities(self, holdings, tickers, config):
-        moedas = ['BTC', 'ETH', 'EUR', 'USD']
+    def find_all_opportunities(self, holdings, tickers_by_source, config):
+        """Find arbitrage opportunities across sources for the same pair.
+
+        For each pair that has prices from two or more sources, check whether
+        one source's bid (sell price) exceeds another source's ask (buy price).
+        If so, we can buy cheap and sell expensive simultaneously.
+
+        tickers_by_source: {pair: {source: {ask, bid}}}
+        """
+        bot_config = BotConfig.get_config()
+        moedas = [c.strip() for c in bot_config.selected_currencies.split(',') if c.strip()]
+        if not moedas:
+            moedas = ['BTC', 'ETH', 'EUR', 'USD']
         opportunities = []
 
         for cur_origem in holdings.keys():
-            if holdings[cur_origem] <= 0: continue
-            
+            if holdings[cur_origem] <= 0:
+                continue
+
             for cur_destino in moedas:
-                if cur_origem == cur_destino: continue
-                
+                if cur_origem == cur_destino:
+                    continue
+
                 # Try different pair formats
                 pair_formats = [
                     f"{cur_origem}-{cur_destino}",
@@ -210,40 +161,61 @@ class PortfolioOptimizer:
                     f"{cur_destino}-{cur_origem}",
                     f"{cur_destino}{cur_origem}",
                 ]
-                
-                # Find which format exists in tickers
+
                 pair = None
                 reverse_pair = None
-                
+
                 for fmt in pair_formats:
-                    if fmt in tickers:
+                    if fmt in tickers_by_source:
                         pair = fmt
                         break
-                
                 for fmt in reverse_formats:
-                    if fmt in tickers:
+                    if fmt in tickers_by_source:
                         reverse_pair = fmt
                         break
-                
-                if pair:
-                    p_from, p_to = Decimal('1'), Decimal(str(tickers[pair]['ask']))
-                    ret = float((Decimal(str(tickers[pair]['bid'])) - p_to) / p_to)
-                    active_pair = pair
-                elif reverse_pair:
-                    p_from, p_to = Decimal(str(tickers[reverse_pair]['bid'])), Decimal('1')
-                    ret = float((p_from - Decimal(str(tickers[reverse_pair]['ask']))) / Decimal(str(tickers[reverse_pair]['ask'])))
-                    active_pair = reverse_pair
-                else:
+
+                active_pair = pair or reverse_pair
+                if not active_pair:
                     continue
 
-                conf = max(0, min(1.0, ret * 25))
+                sources = tickers_by_source[active_pair]
+                if len(sources) < 2:
+                    continue
+
+                # Find the best arbitrage: lowest ask (buy cheap) vs highest bid (sell expensive)
+                source_list = list(sources.items())
+                best_buy = min(source_list, key=lambda s: s[1]['ask'])   # cheapest ask
+                best_sell = max(source_list, key=lambda s: s[1]['bid'])  # highest bid
+
+                buy_ask = best_buy[1]['ask']
+                sell_bid = best_sell[1]['bid']
+
+                # Only trade if there's a positive spread (sell_bid > buy_ask)
+                if sell_bid <= buy_ask:
+                    continue
+
+                spread_pct = float(sell_bid - buy_ask) / float(buy_ask)
+
+                # p_from / p_to encode how the 'from' currency converts via this pair
+                if pair:
+                    p_from = buy_ask
+                    p_to = Decimal('1')
+                else:
+                    p_from = Decimal('1')
+                    p_to = buy_ask
+
+                # Any positive spread is guaranteed profit for arbitrage.
+                # Scale so that a 0.01% spread already reaches high confidence.
+                conf = max(0, min(1.0, spread_pct * 5000))
                 if conf >= config.min_confidence_score:
                     opportunities.append({
-                        'from': cur_origem, 'to': cur_destino, 
+                        'from': cur_origem, 'to': cur_destino,
                         'amount': holdings[cur_origem] * Decimal(str(config.trade_size_percentage or 0.1)),
-                        'p_from': p_from, 'p_to': p_to, 'conf': conf, 'pair': active_pair
+                        'buy_ask': buy_ask, 'sell_bid': sell_bid,
+                        'p_from': p_from, 'p_to': p_to,
+                        'conf': conf, 'pair': active_pair
                     })
-        
+
         return sorted(opportunities, key=lambda x: x['conf'], reverse=True)[:2]
 
 class BotRunner:
@@ -263,47 +235,58 @@ class BotRunner:
             self.logger.warning("Bot is already running")
             return
 
+        # Recreate TradeBot to pick up latest config (bot_user, etc.)
+        self.bot = TradeBot()
         self.running = True
-        self.thread = threading.Thread(target=self._run_loop, daemon=False)
+        self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
         self.logger.info("Bot started")
 
     def stop(self):
         self.running = False
-        if self.thread:
-            self.thread.join(timeout=10)
+        # Don't block — the loop checks self.running every second
         self.logger.info("Bot stopped")
+
+    def _interruptible_sleep(self, seconds):
+        """Sleep in 1-second increments so we can respond to stop quickly."""
+        end = time.monotonic() + seconds
+        while self.running and time.monotonic() < end:
+            time.sleep(1)
 
     def _run_loop(self):
         print("🤖 Bot loop started!")
-        thresholdSeconds = 15.0
-        lastFullPull = time.monotonic()
+        ticker_refresh_interval = 15.0
+        # Start at 0 so the first ticker pull + trade happens immediately
+        lastFullPull = 0
         try:
             while self.running:
                 try:
                     config = BotConfig.get_config()
                     if not config.is_active:
-                        time.sleep(2)
+                        self._interruptible_sleep(2)
                         continue
-                        
+
                     now = time.monotonic()
-                    if now - lastFullPull >= thresholdSeconds:
+                    if now - lastFullPull >= ticker_refresh_interval:
                         print("📊 Fetching tickers...")
                         self.bot.refresh_all_tickers()
                         lastFullPull = now
-                        executed = self.bot.run_iteration()
-                        if executed:
-                            print(f"✅ Executed {len(executed)} trades")
-                    
-                    time.sleep(config.check_interval_seconds)
+
+                    # Always try to trade using whatever snapshots exist
+                    executed = self.bot.run_iteration()
+                    if executed:
+                        print(f"✅ Executed {len(executed)} trades")
+
+                    # Sleep 10 seconds between iterations (responsive enough
+                    # for a dashboard, light enough on the DB)
+                    self._interruptible_sleep(10)
                 except Exception as e:
                     print(f"⚠️ Error in iteration: {e}")
                     self.logger.error(f"Error in iteration: {e}", exc_info=True)
-                    time.sleep(5)
+                    self._interruptible_sleep(5)
         except Exception as e:
             print(f"❌ Fatal error in bot loop: {e}")
             self.logger.error(f"Fatal error in bot loop: {e}", exc_info=True)
-            time.sleep(5)
 
 
     def is_running(self) -> bool:

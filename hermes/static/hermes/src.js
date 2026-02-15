@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ALL YOUR CODE HERE
-
     // ========== CURRENCIES DATABASE ==========
     const allCurrencies = [
         { symbol: 'EUR', name: 'Euro', icon: '€', color: 'from-[#3b82f6] to-[#2563eb]' },
@@ -12,12 +10,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let selectedCurrencies = [];
 
+    // ========== PERSISTENCE HELPERS ==========
+    function saveToLocalStorage() {
+        localStorage.setItem('hermes_selected_currencies', JSON.stringify(selectedCurrencies));
+        const amountVal = document.getElementById('amountInput').value;
+        if (amountVal) localStorage.setItem('hermes_investment_amount', amountVal);
+    }
+
+    function syncToBackend() {
+        const amountVal = document.getElementById('amountInput').value || '0';
+        fetch('/hermes/api/preferences/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selected_currencies: selectedCurrencies,
+                investment_amount: amountVal
+            })
+        }).catch(err => console.error('Error syncing preferences:', err));
+    }
+
+    function loadPreferences() {
+        // Try localStorage first for instant display
+        const cached = localStorage.getItem('hermes_selected_currencies');
+        if (cached) {
+            try {
+                selectedCurrencies = JSON.parse(cached);
+                updateCurrenciesDisplay();
+            } catch (e) { /* ignore parse errors */ }
+        }
+        const cachedAmount = localStorage.getItem('hermes_investment_amount');
+        if (cachedAmount) {
+            const amountInput = document.getElementById('amountInput');
+            if (amountInput) amountInput.value = cachedAmount;
+        }
+
+        // Then fetch from backend (source of truth)
+        fetch('/hermes/api/preferences/')
+            .then(r => r.json())
+            .then(data => {
+                if (data.selected_currencies && data.selected_currencies.length > 0) {
+                    selectedCurrencies = data.selected_currencies;
+                    updateCurrenciesDisplay();
+                    localStorage.setItem('hermes_selected_currencies', JSON.stringify(selectedCurrencies));
+                }
+                if (data.investment_amount && data.investment_amount !== '0' && data.investment_amount !== '0.00') {
+                    const amountInput = document.getElementById('amountInput');
+                    if (amountInput) amountInput.value = data.investment_amount;
+                    localStorage.setItem('hermes_investment_amount', data.investment_amount);
+                }
+            })
+            .catch(err => console.error('Error loading preferences:', err));
+    }
+
     // ========== CURRENCY SEARCH ==========
     const currencySearch = document.getElementById('currencySearch');
     const currencyDropdown = document.getElementById('currencyDropdown');
     const selectedCurrenciesContainer = document.getElementById('selectedCurrencies');
 
-    selectedCurrenciesContainer.innerHTML = '<div class="w-full text-center text-[#64748b] text-sm">No currencies selected</div>';
+    // Show placeholder until preferences load
+    selectedCurrenciesContainer.innerHTML = '<div class="w-full text-center text-[#64748b] text-sm">Loading...</div>';
 
     function showDropdown(query) {
         const results = allCurrencies.filter(currency =>
@@ -65,11 +116,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!resultElement) return;
 
         const symbol = resultElement.dataset.symbol;
-        const name = resultElement.dataset.name;
-        const icon = resultElement.dataset.icon;
-        const color = resultElement.dataset.color;
 
-        if (selectedCurrencies.includes(symbol)) return; // Already selected
+        if (selectedCurrencies.includes(symbol)) return;
         if (selectedCurrencies.length >= 4) {
             alert('Maximum 4 currencies allowed');
             return;
@@ -77,6 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         selectedCurrencies.push(symbol);
         updateCurrenciesDisplay();
+        saveToLocalStorage();
+        syncToBackend();
 
         currencySearch.value = '';
         currencyDropdown.classList.add('hidden');
@@ -127,60 +177,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function removeCurrency(symbol) {
         selectedCurrencies = selectedCurrencies.filter(s => s !== symbol);
         updateCurrenciesDisplay();
+        saveToLocalStorage();
+        syncToBackend();
     }
-
-    // Função para formatar valores monetários
-    function formatCurrency(value) {
-         return '€' + parseInt(value).toLocaleString('pt-PT');
-    }
-
-    // Aimed Profit
-    const aimedProfitInput = document.getElementById('aimedProfitInput');
-    const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
-
-    let aimedProfitPrev = aimedProfitInput.value;
-
-    document.getElementById('aimedProfitWrapper').addEventListener('click', function() {
-        aimedProfitInput.focus();
-    });
-
-    aimedProfitInput.addEventListener('focus', function() {
-        aimedProfitPrev = aimedProfitInput.value;
-        aimedProfitDisplay.style.opacity = '0';
-        aimedProfitInput.value = '';
-    });
-
-    aimedProfitInput.addEventListener('input', function(e) {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        e.target.value = value;
-    });
-
-    aimedProfitInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') e.target.blur();
-    });
-
-    aimedProfitInput.addEventListener('blur', function(e) {
-        const value = e.target.value || aimedProfitPrev;
-        e.target.value = value;
-        aimedProfitDisplay.textContent = formatCurrency(value);
-        aimedProfitDisplay.style.opacity = '';
-    });
 
     // Amount
     const amountInput = document.getElementById('amountInput');
-    const amountDisplay = document.getElementById('amountDisplay');
 
     let amountPrev = amountInput.value;
 
-    document.getElementById('amountWrapper').addEventListener('click', function() {
-        amountInput.focus();
-    });
-
-    amountInput.addEventListener('focus', function() {
-        amountPrev = amountInput.value;
-        amountDisplay.style.opacity = '0';
-        amountInput.value = '';
-    });
+    if (document.getElementById('amountWrapper')) {
+        document.getElementById('amountWrapper').addEventListener('click', function() {
+            amountInput.focus();
+        });
+    }
 
     amountInput.addEventListener('input', function(e) {
         const value = e.target.value.replace(/[^0-9]/g, '');
@@ -194,61 +204,37 @@ document.addEventListener('DOMContentLoaded', function() {
     amountInput.addEventListener('blur', function(e) {
         const value = e.target.value || amountPrev;
         e.target.value = value;
-        amountDisplay.textContent = formatCurrency(value);
-        amountDisplay.style.opacity = '';
+        amountPrev = value;
+        // Persist investment amount
+        saveToLocalStorage();
+        syncToBackend();
     });
 
-    // Risk
+    // Risk — recalculates client-side for instant feedback after changing investment.
+    // The server recomputes the real value every 2s via the metrics poll, which
+    // will reconcile, but this gives the user immediate visual response.
     const riskInput = document.getElementById('riskInput');
     const riskDisplay = document.getElementById('riskDisplay');
 
-    function calculateRisk() {
-        const profit = parseFloat(document.getElementById('aimedProfitInput').value) || 0;
+    function estimateRiskFromInvestment() {
         const amount = parseFloat(document.getElementById('amountInput').value) || 0;
-
-        let riskValue = 0;
-        if (amount > 0) {
-            //substituir depois pela fórmula de cálculo de risco
-            riskValue = (profit / amount) * 100;
-        }
-
-        const formattedRisk = riskValue === 0 ? '0' : riskValue.toFixed(2);
-        if (riskInput) riskInput.value = formattedRisk;
-        if (riskDisplay) riskDisplay.textContent = formattedRisk + '%';
+        // Mirror the server-side formula: exposure = amount * trade_size (default 0.1)
+        // investment_risk = min(log10(exposure+1) * 10, 40)
+        // Then weight it at 0.25 alongside baseline factors.
+        const tradeSize = 0.1;
+        const exposure = amount * tradeSize;
+        const investmentRisk = exposure > 0 ? Math.min(Math.log10(exposure + 1) * 10, 40) : 0;
+        // Baseline factors when no trades exist: loss=10, vol=5, conf=15, tol=10
+        const baseline = 10 * 0.20 + 5 * 0.15 + investmentRisk * 0.25 + 15 * 0.20 + 10 * 0.20;
+        const risk = Math.max(0, Math.min(100, baseline));
+        const formatted = risk.toFixed(1);
+        if (riskInput) riskInput.value = formatted;
+        if (riskDisplay) riskDisplay.textContent = formatted + '%';
     }
 
-    document.getElementById('aimedProfitInput').addEventListener('blur', calculateRisk);
-    document.getElementById('amountInput').addEventListener('blur', calculateRisk);
+    document.getElementById('amountInput').addEventListener('blur', estimateRiskFromInvestment);
 
-    // Chart tooltip
-    const tooltip = document.getElementById('chartTooltip');
-    const tooltipMonth = document.getElementById('tooltipMonth');
-    const tooltipValue = document.getElementById('tooltipValue');
-    const chartContainer = document.querySelector('.relative.h-72');
-
-    document.querySelectorAll('.chart-point[data-month]').forEach(point => {
-        point.addEventListener('mouseenter', function(e) {
-            tooltipMonth.textContent = this.dataset.month;
-            tooltipValue.textContent = '$' + this.dataset.value;
-
-            const svg = this.closest('svg');
-            const rect = svg.getBoundingClientRect();
-            const containerRect = chartContainer.getBoundingClientRect();
-            const cx = parseFloat(this.getAttribute('cx'));
-            const cy = parseFloat(this.getAttribute('cy'));
-            const viewBox = svg.viewBox.baseVal;
-
-            const x = ((cx - viewBox.x) / viewBox.width) * rect.width;
-            const y = (cy / viewBox.height) * rect.height;
-
-            tooltip.classList.remove('hidden');
-            tooltip.style.left = (x - tooltip.offsetWidth / 2) + 'px';
-            tooltip.style.top = (y - tooltip.offsetHeight - 12) + 'px';
-        });
-
-        point.addEventListener('mouseleave', function() {
-            tooltip.classList.add('hidden');
-        });
-    });
+    // ========== LOAD SAVED PREFERENCES ==========
+    loadPreferences();
 
 });
