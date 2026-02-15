@@ -23,5 +23,6 @@ urlpatterns = [
     # dynamic URL (:fire:)
     path('price/<str:pair>/', price_view, name= 'price-view'),
     path('', include('principal.urls')),
+    path('hermes/', include('hermes.urls')),
     path('finance', include('finance.urls'))
 ]
