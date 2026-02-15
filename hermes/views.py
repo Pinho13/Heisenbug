@@ -6,6 +6,8 @@ from django.views.decorators.http import require_http_methods
 from finance.uphold_api import UpholdAPIHandler
 from finance.models import TradeHistory, BotConfig, PriceSnapshot
 import logging
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +65,37 @@ def home(request):
     return render(request, 'base.html', context)
 
 
+def load_credentials_from_json():
+    """Load credentials from credentials.json file"""
+    credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'credentials.json')
+    try:
+        with open(credentials_path, 'r') as f:
+            data = json.load(f)
+            return data.get('credentials', [])
+    except FileNotFoundError:
+        logger.warning(f"credentials.json not found at {credentials_path}")
+        return []
+    except json.JSONDecodeError:
+        logger.error(f"Invalid JSON in credentials.json")
+        return []
+
+
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
         
-        if user is not None:
-            login(request, user)
+        # Check credentials from JSON file
+        json_credentials = load_credentials_from_json()
+        valid_user = None
+        
+        for cred in json_credentials:
+            if cred.get('username') == username and cred.get('password') == password:
+                valid_user = cred
+                break
+        
+        if valid_user:
             return JsonResponse({'success': True, 'message': 'Login successful'})
         else:
             return JsonResponse({'success': False, 'message': 'Invalid credentials'}, status=401)
