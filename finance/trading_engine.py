@@ -1,253 +1,51 @@
 from decimal import Decimal
-from typing import List, Dict, Tuple, Optional
 from .risk_analyzer import RiskAnalyzer, TradeDecision
-from .uphold_api import UpholdAPIHandler, PortfolioSnapshot
-from .cache import MarketDataCache
-
 
 class PortfolioOptimizer:
-    """
-    Analyzes all possible trades from current holdings
-    and recommends the best one based on risk and return.
-    """
-
-    def __init__(self, api_handler: UpholdAPIHandler):
+    def __init__(self, api_handler):
         self.api = api_handler
-        self.cache = MarketDataCache()
-        self.risk_analyzers: Dict[str, RiskAnalyzer] = {}
+        self.risk_analyzers = {}
 
-    def get_or_create_analyzer(self, pair: str) -> RiskAnalyzer:
-        """Get or create risk analyzer for a pair."""
+    def get_analyzer(self, pair):
         if pair not in self.risk_analyzers:
-            self.risk_analyzers[pair] = RiskAnalyzer(volatility_window=10)
+            self.risk_analyzers[pair] = RiskAnalyzer(window=10)
         return self.risk_analyzers[pair]
 
-    def update_price_history(self, pair: str, price: Decimal):
-        """Update price history for volatility calculation."""
-        analyzer = self.get_or_create_analyzer(pair)
-        analyzer.add_price(price)
-
-    def _get_conversion_rate(self, from_symbol: str, to_symbol: str, tickers: Dict[str, dict]) -> Optional[Tuple[Decimal, Decimal]]:
-        """
-        Calcula a taxa entre moedas usando os tickers em memória.
-        """
-        # Caso 1: Par Direto (ex: BTC-USD para comprar BTC com USD)
-        pair = f"{from_symbol}-{to_symbol}"
-        if pair in tickers:
-            return (Decimal(str(tickers[pair]['bid'])), Decimal(str(tickers[pair]['ask'])))
-
-        # Caso 2: Par Inverso (ex: USD-BTC usando dados de BTC-USD)
-        reverse_pair = f"{to_symbol}-{from_symbol}"
-        if reverse_pair in tickers:
-            rev_ask = Decimal(str(tickers[reverse_pair]['ask']))
-            if rev_ask > 0:
-                # O preço de 1 unidade da moeda base (USD) em BTC
-                return (Decimal('1'), rev_ask)
-
-        return None
-
-    def generate_trade_opportunities(
-        self,
-        portfolio: PortfolioSnapshot,
-        available_pairs: List[str],
-        tickers: Dict[str, dict],
-        trade_size_amount: Optional[Decimal] = None,
-        trade_size_percent: float = 0.1
-    ) -> List[TradeDecision]:
-        """
-        Generate all possible trades from current holdings.
-
-        Args:
-            portfolio: Current holdings
-            available_pairs: List of tradeable pairs
-            tickers: Dict of ticker data from API
-            trade_size_amount: Fixed amount to trade (if set, overrides percent)
-            trade_size_percent: Percentage of holdings to trade
-
-        Returns:
-            List of TradeDecision objects
-        """
-        trades = []
+    def find_best_trade(self, portfolio, available_pairs, tickers, risk_tolerance, min_confidence, trade_size_amount=None, trade_size_percent=0.1):
         holdings = portfolio.get_all_holdings()
+        best_decision = None
 
-        # For each currency we hold
-        for from_currency, balance in holdings.items():
-            if balance <= 0:
-                continue
+        for from_curr, balance in holdings.items():
+            if balance <= 0: continue
+            
+            amount = Decimal(str(trade_size_amount)) if trade_size_amount else balance * Decimal(str(trade_size_percent))
+            amount = min(amount, balance)
 
-            # Determine trade amount
-            if trade_size_amount:
-                amount = min(trade_size_amount, balance)
-            else:
-                amount = balance * Decimal(str(trade_size_percent))
-                amount = min(amount, balance)
+            for pair_symbol in available_pairs:
+                if from_curr not in pair_symbol: continue
+                
+                # Identificar moeda de destino
+                to_curr = pair_symbol.replace(from_curr, "").replace("-", "")
+                ticker = tickers.get(pair_symbol)
+                if not ticker: continue
 
-            if amount <= 0:
-                continue
+                from_price = Decimal('1.0') # Simplificado para base USD
+                to_price = Decimal(str(ticker['ask']))
+                
+                if to_price <= 0: continue
 
-            # Try converting to each other currency
-            for to_currency in set([
-                    c for pair in available_pairs for c in pair.split('-')]):
-                if to_currency == from_currency:
-                    continue
+                # Cálculo de Retorno e Risco
+                expected_return = float((Decimal(str(ticker['bid'])) - to_price) / to_price)
+                analyzer = self.get_analyzer(pair_symbol)
+                volatility = analyzer.calculate_volatility(pair_symbol)
+                
+                # Confiança: Retorno alto + Volatilidade baixa = +Confiança
+                confidence = max(0, min(1.0, (expected_return * 5) - (volatility * 2)))
+                risk_score = analyzer.calculate_risk_score(expected_return, volatility, confidence)
 
-                # Get conversion rate
-                rate_info = self._get_conversion_rate(
-                    from_currency, to_currency, tickers
-                )
-                if not rate_info:
-                    continue
+                if analyzer.should_trade(risk_score, confidence, risk_tolerance, min_confidence):
+                    decision = TradeDecision(from_curr, to_curr, amount, from_price, to_price, confidence, risk_score, volatility, "Lucro detectado")
+                    if not best_decision or decision.score() > best_decision.score():
+                        best_decision = decision
 
-                from_price, to_price = rate_info
-                if from_price <= 0 or to_price <= 0:
-                    continue
-
-                # Calculate expected return
-                from_value = amount * from_price
-                to_value = from_value * (to_price / from_price)
-                expected_return_pct = float(
-                    (to_value - from_value) / from_value) if from_value > 0 else 0.0
-
-                # Skip if no profit potential
-                if expected_return_pct <= -1.0:  # Less than 0.1% gain
-                    continue
-
-                # Get volatility
-                pair_key = f"{from_currency}-{to_currency}"
-                analyzer = self.get_or_create_analyzer(pair_key)
-                self.update_price_history(pair_key, from_price)
-                volatility = analyzer.calculate_volatility()
-
-                # Calculate confidence and risk
-                confidence = self._calculate_confidence(
-                    expected_return_pct, volatility)
-                risk_score = analyzer.calculate_risk_score(
-                    expected_return_pct, volatility, confidence
-                )
-
-                trade = TradeDecision(
-                    from_pair=from_currency,
-                    to_pair=to_currency,
-                    amount=amount,
-                    from_price=from_price,
-                    to_price=to_price,
-                    confidence=confidence,
-                    risk_score=risk_score,
-                    volatility=volatility,
-                    reason=f"Potential {expected_return_pct:.2%} gain with {
-                        volatility:.2f} volatility"
-                )
-
-                trades.append(trade)
-
-        return trades
-
-    def _calculate_confidence(self, expected_return_pct: float, volatility: float) -> float:
-        """
-        Calculate confidence score for a trade.
-
-        Higher return + lower volatility = higher confidence.
-
-        Args:
-            expected_return_pct: Expected return percentage (-1 to 1)
-            volatility: Volatility score (0 to 1)
-
-        Returns:
-            Confidence score (0 to 1)
-        """
-        # Base confidence from return potential
-        return_confidence = min(abs(expected_return_pct) * 2, 1.0)
-
-        # Reduce confidence by volatility
-        volatility_penalty = volatility * 0.5
-        confidence = max(return_confidence - volatility_penalty, 0.0)
-
-        return min(confidence, 1.0)
-
-    def rank_trades(self, trades: List[TradeDecision]) -> List[TradeDecision]:
-        """Rank trades by score (highest first)."""
-        return sorted(trades, key=lambda t: t.score(), reverse=True)
-
-    def find_best_trade(
-        self,
-        portfolio: PortfolioSnapshot,
-        available_pairs: List[str],
-        tickers: Dict[str, dict],
-        risk_tolerance: float = 0.5,
-        min_confidence: float = 0.6,
-        trade_size_amount: Optional[Decimal] = None,
-        trade_size_percent: float = 0.1
-    ) -> Optional[TradeDecision]:
-        """
-        Find the single best trade given constraints.
-
-        Returns:
-            Best TradeDecision or None if no suitable trade found
-        """
-        # Generate opportunities
-        trades = self.generate_trade_opportunities(
-            portfolio, available_pairs, tickers,
-            trade_size_amount, trade_size_percent
-        )
-
-        if not trades:
-            return None
-
-        # Rank by score
-        ranked = self.rank_trades(trades)
-
-        # Find first trade that meets risk/confidence criteria
-        analyzer = RiskAnalyzer()
-        for trade in ranked:
-            if analyzer.should_trade(
-                trade.risk_score,
-                trade.confidence,
-                risk_tolerance,
-                min_confidence
-            ):
-                return trade
-
-        return None
-
-    def get_top_n_trades(
-        self,
-        portfolio: PortfolioSnapshot,
-        available_pairs: List[str],
-        tickers: Dict[str, dict],
-        n: int = 5,
-        risk_tolerance: float = 0.5,
-        min_confidence: float = 0.6,
-        trade_size_amount: Optional[Decimal] = None,
-        trade_size_percent: float = 0.1
-    ) -> List[TradeDecision]:
-        """
-        Get top N trade opportunities that meet risk criteria.
-
-        Returns:
-            List of TradeDecision objects, sorted by score
-        """
-        trades = self.generate_trade_opportunities(
-            portfolio, available_pairs, tickers,
-            trade_size_amount, trade_size_percent
-        )
-
-        if not trades:
-            return []
-
-        ranked = self.rank_trades(trades)
-        analyzer = RiskAnalyzer()
-
-        # Filter by risk/confidence
-        suitable = []
-        for trade in ranked:
-            if analyzer.should_trade(
-                trade.risk_score,
-                trade.confidence,
-                risk_tolerance,
-                min_confidence
-            ):
-                suitable.append(trade)
-                if len(suitable) >= n:
-                    break
-
-        return suitable
+        return best_decision

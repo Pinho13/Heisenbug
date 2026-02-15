@@ -3,7 +3,7 @@ import django
 from decimal import Decimal
 
 # 1. Configurar Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'teu_projeto.settings') # AJUSTA O NOME AQUI
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings') # AJUSTA O NOME AQUI
 django.setup()
 
 from django.contrib.auth.models import User
