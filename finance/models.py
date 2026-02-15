@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-
+from django.contrib.auth.models import User
 
 class AssetPool(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
@@ -114,29 +114,3 @@ class UserBalance(models.Model):
         unique_together = ('user', 'currency') # Um registo por moeda por user
 
 
-class PriceSnapshot2(models.Model):
-    pair = models.CharField(max_length=20, db_index=True)
-    bid = models.DecimalField(max_digits=20, decimal_places=8)
-    ask = models.DecimalField(max_digits=20, decimal_places=8)
-    currency = models.CharField(max_length=10, default='USD')
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        get_latest_by = 'timestamp'
-
-    def __str__(self):
-        return f"{self.pair} @ {self.ask} ({self.currency}) em {self.timestamp}"
-    
-
-class PriceSnapshot3(models.Model):
-    pair = models.CharField(max_length=20, db_index=True)
-    bid = models.DecimalField(max_digits=20, decimal_places=8)
-    ask = models.DecimalField(max_digits=20, decimal_places=8)
-    currency = models.CharField(max_length=10, default='USD')
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        get_latest_by = 'timestamp'
-
-    def __str__(self):
-        return f"{self.pair} @ {self.ask} ({self.currency}) em {self.timestamp}"    

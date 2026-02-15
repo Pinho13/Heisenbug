@@ -4,14 +4,16 @@ from typing import Optional, Dict, List
 import threading
 import time
 import logging
+import random
 
 from django.utils import timezone
 from .uphold_api import UpholdAPIHandler
 from .trading_engine import PortfolioOptimizer, TradeDecision
 from .cache import MarketDataCache
-from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot
-
+from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot, UserBalance, AssetPool
 logger = logging.getLogger(__name__)
+
+
 
 
 class TradeBot:
@@ -50,131 +52,130 @@ class TradeBot:
                     self._store_price_snapshot(pair, currency, ticker)
         return result
 
-    def execute_trade(
-        self,
-        decision: TradeDecision,
-        config: BotConfig
-    ) -> bool:
-        """Execute a trade decision
-        Returns true if successful
-        """
+    def execute_trade(self, decision: TradeDecision, config: BotConfig, user) -> bool: # Adicionado 'user' aqui
         try:
-            self.logger.info(
-                f"Executing trade: {decision.from_pair}->{decision.to_pair}, "
-                f"amount={decision.amount}, confidence={
-                    decision.confidence:.2f}"
-            )
-            result = self.api.place_order(
-                decision.to_pair,
-                decision.amount,
-                "buy"
-            )
-            trade_record = TradeHistory.objects.create(
-                from_pair=decision.from_pair,
-                to_pair=decision.to_pair,
-                decision="BUY",
-                status="EXECUTED" if result else "FAILED",
+            self.logger.info(f"Executing trade for {user.username}: {decision.from_pair}->{decision.to_pair}")
+            
+            # Simulação de ordem na API
+            result = self.api.place_order(decision.to_pair, decision.amount, "buy")
+            
+            if result:
+                # A. Retirar saldo da moeda de origem
+                bal_from = UserBalance.objects.get(user=user, currency=decision.from_pair)
+                bal_from.amount -= Decimal(str(decision.amount))
+                bal_from.save()
+
+                # B. Adicionar saldo na moeda de destino
+                bal_to, created = UserBalance.objects.get_or_create(
+                    user=user,
+                    currency=decision.to_pair,
+                    defaults={'amount': Decimal('0')}
+                )
+                
+                bought_amount = (Decimal(str(decision.amount)) * decision.from_price) / decision.to_price
+                bal_to.amount += bought_amount
+                bal_to.save()
+
+            # Histórico
+            TradeHistory.objects.create(
+                user=user, # Adicionado o user ao histórico também!
+                pair=f"{decision.from_pair}-{decision.to_pair}",
+                operation="BUY",
                 amount=decision.amount,
-                from_price=decision.from_price,
-                to_price=decision.to_price,
+                price_at_execution=decision.to_price,
+                status="EXECUTED" if result else "FAILED",
                 confidence_score=decision.confidence,
-                risk_score=decision.risk_score,
-                volatility=decision.volatility,
-                reason=decision.reason,
-                result=str(result) if result else "API request failed",
-                executed_at=timezone.now()
+                reason=decision.reason
             )
 
-            self.logger.info(f"Trade recorded: {trade_record}")
             return result is not None
         except Exception as e:
-            self.logger.error(f"Failed to execute trade: {e}")
-            TradeHistory.objects.create(
-                from_pair=decision.from_pair,
-                to_pair=decision.to_pair,
-                decision="BUY",
-                status="FAILED",
-                amount=decision.amount,
-                from_price=decision.from_price,
-                to_price=decision.to_price,
-                confidence_score=decision.confidence,
-                risk_score=decision.risk_score,
-                volatility=decision.volatility,
-                reason=decision.reason,
-                result=f"Exception: {str(e)}"
-            )
+            self.logger.error(f"Failed to execute trade for {user.username}: {e}")
             return False
 
-    def run_iteration(self) -> Optional[TradeDecision]:
-        """
-        Trade iteration:
-        -> Fetch market data
-        -> get current portfolio
-        -> find best trade
-        -> execute if confidence is high
-
-        Return: TradeDecision if executed, None otherwise
-        """
+    def run_iteration(self) -> List[TradeDecision]:
+        executed_trades = []
         try:
             config = BotConfig.get_config()
             if not config.is_active:
-                self.logger.info("Bot is inactive")
-                return None
+                return []
 
-            enabled_pairs = list(
-                TradingPair.objects.filter(is_enabled=True).values_list(
-                    'pair_symbol', flat=True
-                )
-            )
-
-            if not enabled_pairs:
-                self.logger.warning("No trading pairs enabled")
-                return None
-
-            tickers = self.fetch_market_data(
-                enabled_pairs,
-                ttl_seconds=config.cache_ttl_seconds
-            )
-
+            # 1. Carregar preços
+            enabled_pairs = list(TradingPair.objects.filter(is_enabled=True).values_list('pair_symbol', flat=True))
+            tickers = self.fetch_market_data(enabled_pairs, ttl_seconds=config.cache_ttl_seconds)
+            
             if not tickers:
-                self.logger.warning("Failed to fetch market data")
-                return None
+                return []
 
-            portfolio = self.api.get_portfolio()
-            if not portfolio or not portfolio.get_all_holdings():
-                self.logger.warning("Could not fetch portfolio")
-                return None
+            # --- SMART ORDER ROUTING ---
+            from .utils import get_best_market_prices
+            for pair in enabled_pairs:
+                best = get_best_market_prices(pair)
+                if best.get('buy') and pair in tickers:
+                    tickers[pair]['ask'] = float(best['buy'])
+                    tickers[pair]['bid'] = float(best['sell'])
 
-            trade_size = (
-                config.trade_size_amount
-                if config.trade_size_amount and config.trade_size_amount > 0
-                else None
-            )
+            # 2. Iterar pelos IDs únicos na tua tabela UserBalance
+            # Isto ignora se o User é do Django ou Custom, foca apenas no ID da FK
+            user_ids = UserBalance.objects.values_list('user_id', flat=True).distinct()
+            
+            for u_id in user_ids:
+                # Buscar saldos e moedas permitidas via ID puro
+                user_balances = UserBalance.objects.filter(user_id=u_id)
+                allowed_symbols = list(AssetPool.objects.filter(user_id=u_id, is_active=True).values_list('symbol', flat=True))
+                
+                if not user_balances.exists() or not allowed_symbols:
+                    continue
+                
+                # Wrapper para o Optimizer
+                class PortfolioWrapper:
+                    def __init__(self, balances):
+                        self.data = {b.currency: b.amount for b in balances}
+                    def get_all_holdings(self):
+                        return self.data
 
-            decision = self.optimizer.find_best_trade(
-                portfolio=portfolio,
-                available_pairs=enabled_pairs,
-                tickers=tickers,
-                risk_tolerance=config.risk_tolerance,
-                min_confidence=config.min_confidence_score,
-                trade_size_amount=trade_size,
-                trade_size_percent=config.trade_size_percentage
-            )
+                portfolio = PortfolioWrapper(user_balances)
 
-            if decision:
-                self.logger.info(f"Found trade opportunity: {decision}")
-                executed = self.execute_trade(decision, config)
-                if executed:
-                    TradeHistory.cleanup_old_trades(keep_count=100)
-                    return decision
-            else:
-                self.logger.debug("No suitable trades found")
+                # 3. Optimizer
+                decision = self.optimizer.find_best_trade(
+                    portfolio=portfolio,
+                    available_pairs=enabled_pairs,
+                    tickers=tickers,
+                    risk_tolerance=config.risk_tolerance,
+                    min_confidence=config.min_confidence_score,
+                    trade_size_amount=config.trade_size_amount,
+                    trade_size_percent=config.trade_size_percentage
+                )
 
-            return None
+                if decision:
+                    # Passamos o u_id em vez do objeto user
+                    # Vamos precisar de um pequeno ajuste no execute_trade para aceitar o ID
+                    success = self.execute_trade_by_id(decision, config, u_id)
+                    if success:
+                        executed_trades.append(decision)
+
+            return executed_trades
         except Exception as e:
-            self.logger.error(f"Error in trading iteration: {
-                              e}", exc_info=True)
-            return None
+            self.logger.error(f"Erro na iteração: {e}")
+            return []
+    
+    def execute_trade_by_id(self, decision, config, user_id):
+            # Versão do execute_trade que usa apenas o ID para atualizar a DB
+        try:
+                # Simulação API
+            result = self.api.place_order(decision.to_pair, decision.amount, "buy")
+            if result:
+                # Atualizar saldos via ID
+                bal_from = UserBalance.objects.get(user_id=user_id, currency=decision.from_pair)
+                bal_from.amount -= Decimal(str(decision.amount))
+                bal_from.save()
+
+                bal_to, _ = UserBalance.objects.get_or_create(user_id=user_id, currency=decision.to_pair)
+                bal_to.amount += (Decimal(str(decision.amount)) * decision.from_price) / decision.to_price
+                bal_to.save()
+                return True
+        except:
+            return False
 
     def refresh_all_tickers(self) -> None:
         try:
@@ -199,15 +200,28 @@ class TradeBot:
             )
 
     def _store_price_snapshot(self, pair: str, currency: str, ticker: dict):
+        """
+        Guarda o preço real e simula variações de mercado
+        """
         try:
-            PriceSnapshot.objects.create(
-                pair=pair,
-                bid=Decimal(str(ticker.get('bid', 0))),
-                ask=Decimal(str(ticker.get('ask', 0))),
-                currency=currency
-            )
+            ask_base = Decimal(str(ticker.get('ask', 0)))
+            bid_base = Decimal(str(ticker.get('bid', 0)))
+            
+            PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+
+            if random.random() > 0.5:
+                variacao = ask_base * Decimal('0.01')
+                
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base - (variacao * 2), currency=currency)
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base + (variacao * 2), ask=ask_base, currency=currency)
+                self.logger.info(f"Oportunidade gerada para {pair}!")
+            else:
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+                PriceSnapshot.objects.create(pair=pair, bid=bid_base, ask=ask_base, currency=currency)
+                self.logger.info(f"Mercado estável para {pair}.")
+
         except Exception as e:
-            self.logger.warning(f"Error storing price snapshot: {e}")
+            self.logger.warning(f"Erro ao gravar snapshots para {pair}: {e}")
 
 
 class BotRunner:

@@ -27,35 +27,22 @@ class PortfolioOptimizer:
         analyzer = self.get_or_create_analyzer(pair)
         analyzer.add_price(price)
 
-    def _get_conversion_rate(
-        self,
-        from_pair: str,
-        to_pair: str,
-        tickers: Dict[str, dict]
-    ) -> Optional[Tuple[Decimal, Decimal]]:
+    def _get_conversion_rate(self, from_symbol: str, to_symbol: str, tickers: Dict[str, dict]) -> Optional[Tuple[Decimal, Decimal]]:
         """
-        Get conversion rate from from_pair to to_pair.
-
-        Returns:
-            Tuple of (from_price, to_price) or None
+        Calcula a taxa entre moedas usando os tickers em memória.
         """
-        # direct pair
-        direct_pair = f"{from_pair}-{to_pair}"
-        if direct_pair in tickers:
-            ticker = tickers[direct_pair]
-            from_price = Decimal(str(ticker.get('ask', 0)))
-            to_price = Decimal('1')  # Base currency price is always 1
-            return (from_price, to_price)
+        # Caso 1: Par Direto (ex: BTC-USD para comprar BTC com USD)
+        pair = f"{from_symbol}-{to_symbol}"
+        if pair in tickers:
+            return (Decimal(str(tickers[pair]['bid'])), Decimal(str(tickers[pair]['ask'])))
 
-        # reverse pair
-        reverse_pair = f"{to_pair}-{from_pair}"
+        # Caso 2: Par Inverso (ex: USD-BTC usando dados de BTC-USD)
+        reverse_pair = f"{to_symbol}-{from_symbol}"
         if reverse_pair in tickers:
-            ticker = tickers[reverse_pair]
-            ask = Decimal(str(ticker.get('ask', 0)))
-            if ask > 0:
-                from_price = ask
-                to_price = Decimal('1') / ask
-                return (from_price, to_price)
+            rev_ask = Decimal(str(tickers[reverse_pair]['ask']))
+            if rev_ask > 0:
+                # O preço de 1 unidade da moeda base (USD) em BTC
+                return (Decimal('1'), rev_ask)
 
         return None
 
@@ -122,7 +109,7 @@ class PortfolioOptimizer:
                     (to_value - from_value) / from_value) if from_value > 0 else 0.0
 
                 # Skip if no profit potential
-                if expected_return_pct <= 0.001:  # Less than 0.1% gain
+                if expected_return_pct <= -1.0:  # Less than 0.1% gain
                     continue
 
                 # Get volatility
