@@ -6,101 +6,204 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Hermes</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .login-container {
+            background: linear-gradient(135deg, #0a0a15 0%, #0f0f23 30%, #1a1a2e 60%, #0f1628 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-container::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(232, 173, 58, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            top: -150px;
+            right: -150px;
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        .login-container::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(52, 199, 145, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            bottom: -100px;
+            left: -100px;
+            animation: float 6s ease-in-out infinite reverse;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-50px); }
+        }
+        
+        @keyframes slideIn {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0px); }
+        }
+        
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(232, 173, 58, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(232, 173, 58, 0.6); }
+        }
+        
+        .glass-card {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(232, 173, 58, 0.1);
+            animation: slideIn 0.8s ease-out;
+        }
+        
+        .logo-section {
+            animation: slideIn 0.6s ease-out;
+        }
+        
+        .input-field {
+            background: rgba(15, 15, 23, 0.6);
+            border: 1px solid rgba(232, 173, 58, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            background: rgba(15, 15, 23, 0.8);
+            border-color: rgba(232, 173, 58, 0.6);
+            box-shadow: 0 0 20px rgba(232, 173, 58, 0.3);
+            outline: none;
+        }
+        
+        .login-btn {
+            background: linear-gradient(135deg, #e8ad3a 0%, #d4952a 100%);
+            position: relative;
+            overflow: hidden;
+            animation: slideIn 1.2s ease-out;
+        }
+        
+        .login-btn:hover {
+            background: linear-gradient(135deg, #f0b843 0%, #e0a535 100%);
+            box-shadow: 0 0 30px rgba(232, 173, 58, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0px);
+        }
+        
+        .login-form {
+            animation: slideIn 1s ease-out;
+        }
+        
+        .error-message {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
 </head>
-<body class="bg-[#0f0f23] text-white">
-<div class="min-h-screen flex items-center justify-center px-4">
-    <div class="w-full max-w-md">
-        <!-- Logo -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold mb-2">Hermes</h1>
-            <p class="text-slate-400">Trading Dashboard</p>
+<body class="login-container min-h-screen flex items-center justify-center px-4">
+    <div class="absolute inset-0 z-0"></div>
+    <div class="relative z-10 w-full max-w-md">
+        
+        <!-- Logo Section -->
+        <div class="logo-section text-center mb-12">
+            <div class="flex justify-center mb-6">
+                <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-20 h-20 drop-shadow-lg">
+            </div>
+            <h1 class="text-5xl font-black mb-2">
+                <span class="bg-gradient-to-r from-[#e8ad3a] to-[#d4952a] bg-clip-text text-transparent">Hermes</span>
+            </h1>
+            <p class="text-slate-400 text-lg">Trading Dashboard</p>
         </div>
 
-        <!-- Login Form -->
-        <div class="bg-[#1a1a2e] rounded-2xl p-8 border border-slate-800/50">
-            <h2 class="text-2xl font-semibold mb-6">Login</h2>
+        <!-- Login Form Card -->
+        <div class="glass-card rounded-3xl p-8 border border-slate-800/50">
+            <h2 class="text-2xl font-semibold mb-8 bg-gradient-to-r from-[#e8ad3a] to-[#d4952a] bg-clip-text text-transparent">Welcome Back</h2>
 
-            <form id="loginForm" class="space-y-4">
+            <form id="loginForm" class="login-form space-y-5">
                 {% csrf_token %}
                 
                 <!-- Username -->
                 <div>
-                    <label for="username" class="block text-sm font-medium mb-2">Username</label>
+                    <label for="username" class="block text-sm font-medium mb-2 text-slate-300">Username</label>
                     <input 
                         type="text" 
                         id="username" 
                         name="username" 
                         required
-                        class="w-full bg-[#0f0f23] border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="input-field w-full rounded-xl px-4 py-3 text-white placeholder-slate-500 font-medium"
                         placeholder="Enter your username"
                     >
                 </div>
 
                 <!-- Password -->
                 <div>
-                    <label for="password" class="block text-sm font-medium mb-2">Password</label>
+                    <label for="password" class="block text-sm font-medium mb-2 text-slate-300">Password</label>
                     <input 
                         type="password" 
                         id="password" 
                         name="password" 
                         required
-                        class="w-full bg-[#0f0f23] border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="input-field w-full rounded-xl px-4 py-3 text-white placeholder-slate-500 font-medium"
                         placeholder="Enter your password"
                     >
                 </div>
 
                 <!-- Error Message -->
-                <div id="errorMessage" class="hidden p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm"></div>
+                <div id="errorMessage" class="error-message hidden p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm"></div>
 
                 <!-- Login Button -->
                 <button 
                     type="submit" 
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition-colors duration-200 mt-6"
+                    class="login-btn w-full text-slate-900 font-bold py-3 rounded-xl transition-all duration-300 mt-8 hover:shadow-xl"
                 >
-                    Login
+                    Login to Hermes
                 </button>
             </form>
 
             <!-- Footer -->
             <p class="text-center text-slate-400 text-sm mt-6">
-                Don't have an account? <a href="#" class="text-indigo-500 hover:text-indigo-400">Sign up</a>
+                Test credentials: <span class="text-[#e8ad3a] font-semibold">admin / admin123</span>
             </p>
         </div>
     </div>
-</div>
 
-<script>
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const errorDiv = document.getElementById('errorMessage');
-    
-    try {
-        const response = await fetch('{% url "hermes:login" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken,
-            },
-            body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
-        });
+    <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const data = await response.json();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const errorDiv = document.getElementById('errorMessage');
         
-        if (data.success) {
-            window.location.href = '/';
-        } else {
-            errorDiv.textContent = data.message;
+        try {
+            const response = await fetch('{% url "hermes:login" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.location.href = '/home/';
+            } else {
+                errorDiv.textContent = data.message;
+                errorDiv.classList.remove('hidden');
+            }
+        } catch (error) {
+            errorDiv.textContent = 'An error occurred. Please try again.';
             errorDiv.classList.remove('hidden');
         }
-    } catch (error) {
-        errorDiv.textContent = 'An error occurred. Please try again.';
-        errorDiv.classList.remove('hidden');
-    }
-});
-</script>
+    });
+    </script>
 </body>
 </html>
