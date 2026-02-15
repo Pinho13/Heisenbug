@@ -8,18 +8,11 @@ import random
 from django.db import transaction
 from django.utils import timezone
 from .uphold_api import UpholdAPIHandler
-from .trading_engine import PortfolioOptimizer, TradeDecision
+from .trading_engine import PortfolioOptimizer
+from .risk_analyzer import TradeDecision
 from .cache import MarketDataCache
 from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot, UserBalance, AssetPool
 logger = logging.getLogger(__name__)
-
-
-
-
-from decimal import Decimal
-import random, logging
-from django.db import transaction
-from .models import TradeHistory, BotConfig, TradingPair, PriceSnapshot, UserBalance
 
 class TradeBot:
     def __init__(self):
@@ -31,27 +24,80 @@ class TradeBot:
         config = BotConfig.get_config()
         if not config.is_active: return []
 
-        all_allowed_pairs = ["BTC-USD", "ETH-USD", "BTC-EUR", "ETH-EUR", "EUR-USD", "BTC-ETH"]
+        # Get all available price snapshots dynamically
+        recent_snapshots = PriceSnapshot.objects.values('pair').distinct()
         
         tickers = {}
-        for p in all_allowed_pairs:
-            s = PriceSnapshot.objects.filter(pair=p).order_by('-timestamp').first()
-            if s: tickers[p] = {'ask': s.ask, 'bid': s.bid}
+        for snap in recent_snapshots:
+            pair = snap['pair']
+            s = PriceSnapshot.objects.filter(pair=pair).order_by('-timestamp').first()
+            if s: tickers[pair] = {'ask': s.ask, 'bid': s.bid}
 
         balances = {b.currency: b.amount for b in UserBalance.objects.filter(user_id=self.user_id)}
         
-        decisions = PortfolioOptimizer().find_all_opportunities(balances, tickers, config)
-
+        # Look for sell opportunities first (take profits on winning BUY positions)
         executed = []
-        for d in decisions:
+        buy_trades = TradeHistory.objects.filter(user_id=self.user_id, status="EXECUTED", operation="BUY").order_by('-timestamp')[:50]
+        
+        for trade in buy_trades:
+            # Check if we should sell this position for profit
+            pair_parts = trade.pair.split('-')
+            if len(pair_parts) != 2: continue
+            
+            # We bought the second currency (pair_parts[1]), check if we can sell it at profit
+            currency_bought = pair_parts[1]
+            if currency_bought not in balances or balances[currency_bought] <= 0:
+                continue
+                
+            current_ticker = tickers.get(trade.pair)
+            if current_ticker and float(current_ticker['bid']) > float(trade.price_at_execution):
+                # Profitable sell opportunity! Sell what we bought back to original currency
+                amount_to_sell = min(balances[currency_bought], balances[currency_bought] * Decimal(str(config.trade_size_percentage or 0.1)))
+                
+                if amount_to_sell > 0:
+                    currency_to_get = pair_parts[0]
+                    decision = {
+                        'from': currency_bought,        # Sell EUR
+                        'to': currency_to_get,         # Get USD
+                        'amount': amount_to_sell,
+                        'p_from': Decimal('1'),        # 1 EUR
+                        'p_to': Decimal(str(current_ticker['bid'])),  # Gets this many USD
+                        'conf': 0.9,
+                        'pair': trade.pair
+                    }
+                    if self.execute_trade(decision):
+                        executed.append(decision)
+                    break  # Only sell one position per iteration
+
+        # Look for buy opportunities
+        opportunities = PortfolioOptimizer().find_all_opportunities(balances, tickers, config)
+        for d in opportunities:
             if self.execute_trade(d):
                 executed.append(d)
+        
         return executed
 
     def execute_trade(self, d):
         try:
             with transaction.atomic():
-                op = "SELL" if d['from'] in ['BTC', 'ETH'] else "BUY"
+                # Determine operation type based on the pair and what we're trading
+                crypto_currencies = ['BTC', 'ETH', 'LTC', 'XRP', 'ADA']
+                
+                pair_parts = d['pair'].split('-')
+                
+                # If selling crypto for anything else = SELL
+                if d['from'] in crypto_currencies:
+                    op = "SELL"
+                # If buying crypto for anything else = BUY
+                elif d['to'] in crypto_currencies:
+                    op = "BUY"
+                # Both fiat: check if we're selling the second currency (closing a buy position)
+                elif len(pair_parts) == 2 and d['from'] == pair_parts[1]:
+                    # We're selling what we bought (the second currency in the pair)
+                    op = "SELL"
+                else:
+                    # Default to BUY
+                    op = "BUY"
                 
                 bal_from = UserBalance.objects.select_for_update().get(user_id=self.user_id, currency=d['from'])
                 bal_to, _ = UserBalance.objects.select_for_update().get_or_create(user_id=self.user_id, currency=d['to'], defaults={'amount': 0})
@@ -70,21 +116,32 @@ class TradeBot:
                     user_id=self.user_id, pair=d['pair'], operation=op, amount=d['amount'],
                     price_at_execution=d['p_to'], status="EXECUTED", confidence_score=d['conf']
                 )
-                print(f"✅ {op}: {d['from']} -> {d['to']} | Quantidade: {received}")
+                print(f"✅ {op}: {d['from']} -> {d['to']} | Quantity: {received}")
                 return True
-        except Exception:
+        except Exception as e:
+            print(f"❌ Trade failed: {e}")
             return False
 
     def refresh_all_tickers(self):
-        tickers = self.api.get_all_tickers() or []
-        allowed = ["BTC", "ETH", "EUR", "USD"]
-        for t in tickers:
-            p, c = t.get('pair'), t.get('currency')
-            if p and any(m in p for m in allowed):
-                ask, bid = Decimal(str(t['ask'])), Decimal(str(t['bid']))
-                PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c)
-                v = ask * Decimal(random.uniform(0.01, 0.05))
-                PriceSnapshot.objects.create(pair=p, bid=bid + v, ask=ask - v, currency=c)
+        try:
+            tickers = self.api.get_all_tickers() or []
+            allowed = ["BTC", "ETH", "EUR", "USD"]
+            for t in tickers:
+                p, c = t.get('pair'), t.get('currency')
+                if p and any(m in p for m in allowed):
+                    try:
+                        ask, bid = Decimal(str(t['ask'])), Decimal(str(t['bid']))
+                        PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c)
+                        # Add slight variation to simulate market movement
+                        v = ask * Decimal(random.uniform(0.01, 0.05))
+                        PriceSnapshot.objects.create(pair=p, bid=bid + v, ask=ask - v, currency=c)
+                    except Exception as e:
+                        logger.warning(f"Failed to create snapshot for {p}: {e}")
+                        continue
+        except Exception as e:
+            logger.error(f"Failed to fetch tickers: {e}")
+            return False
+        return True
 
 class PortfolioOptimizer:
     def find_all_opportunities(self, holdings, tickers, config):
@@ -139,7 +196,6 @@ class BotRunner:
             return
 
         self.running = True
-        self._run_loop()
         self.thread = threading.Thread(target=self._run_loop, daemon=False)
         self.thread.start()
         self.logger.info("Bot started")
@@ -155,18 +211,20 @@ class BotRunner:
         thresholdSeconds = 15.0
         lastFullPull = time.monotonic()
         try:
-            from finance.models import BotConfig
-            config = BotConfig.get_config()
-            config.is_active = True
-            print(config)
-            while (True):
+            while self.running:
+                config = BotConfig.get_config()
+                if not config.is_active:
+                    time.sleep(2)
+                    continue
+                    
                 now = time.monotonic()
                 if now - lastFullPull >= thresholdSeconds:
                     print("trying to fetch tickers")
                     self.bot.refresh_all_tickers()
                     lastFullPull = now
-                    time.sleep(config.check_interval_seconds)
                     self.bot.run_iteration()
+                
+                time.sleep(config.check_interval_seconds)
         except Exception as e:
             self.logger.error(
                 f"Error in bot loop: {e}",

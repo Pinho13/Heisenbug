@@ -138,7 +138,7 @@
         <div class="glass-card rounded-3xl p-8 border border-slate-800/50">
             <h2 class="text-2xl font-semibold mb-8 bg-gradient-to-r from-[#e8ad3a] to-[#d4952a] bg-clip-text text-transparent">Welcome Back</h2>
 
-            <form id="loginForm" class="login-form space-y-5">
+            <form id="loginForm" class="login-form space-y-5" method="POST" action="{% url 'hermes:login' %}">
                 {% csrf_token %}
                 
                 <!-- Username -->
@@ -168,7 +168,9 @@
                 </div>
 
                 <!-- Error Message -->
-                <div id="errorMessage" class="error-message hidden p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm"></div>
+                <div id="errorMessage" class="error-message {% if error %}{% else %}hidden{% endif %} p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 text-sm">
+                    {{ error }}
+                </div>
 
                 <!-- Login Button -->
                 <button 
@@ -188,35 +190,8 @@
 
     <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const errorDiv = document.getElementById('errorMessage');
-        
-        try {
-            const response = await fetch('{% url "hermes:login" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                window.location.href = '/home/';
-            } else {
-                errorDiv.textContent = data.message;
-                errorDiv.classList.remove('hidden');
-            }
-        } catch (error) {
-            errorDiv.textContent = 'An error occurred. Please try again.';
-            errorDiv.classList.remove('hidden');
-        }
+        // Let the form submit naturally with redirect
+        // This will POST to the server and the server will handle the redirect
     });
     
     // Mouse glow effect
