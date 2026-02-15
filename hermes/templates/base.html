@@ -6,51 +6,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-gold { background: linear-gradient(135deg, #e8ad3a 0%, #d4952a 100%); }
+        .glow-gold { box-shadow: 0 0 20px rgba(232, 173, 58, 0.2); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .glass-effect { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); }
+    </style>
 </head>
-<body class="bg-[#0f0f23] text-white">
+<body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
 <div class="flex min-h-screen flex-col md:flex-row">
 
-    <!-- Sidebar -->
-    <aside class="w-full md:w-48 bg-[#16213e] p-4 flex flex-row md:flex-col md:min-h-screen">
-        <div class="mb-10 px-4 flex items-center">
-            <span class="font-bold text-white text-xl">Hermes</span>
-        </div>
-
-        <nav class="flex-1 space-y-2">
-            <a href="#" class="flex items-center gap-3 bg-[#d4952a]/30 text-white px-4 py-3 rounded-lg border border-[#e8ad3a]">
-                <span>🏠</span>
-                <span>Home</span>
-            </a>
-        </nav>
-
-        <a href="#" class="flex items-center gap-3 text-slate-400 hover:text-white px-4 py-3 rounded-lg mt-auto">
-            <span>🚪</span>
-            <span>Signout</span>
-        </a>
-    </aside>
-
     <!-- Main Content -->
-    <main class="flex-1 p-4 md:p-8">
+    <main class="flex-1 p-4 md:p-8 w-full">
 
         <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-            <div class="relative w-full" style="max-width: calc(66.666% + 1.5rem + 1rem + 5.5rem)">
-                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
+            <!-- Logo and Site Name -->
+            <div class="flex items-center gap-3">
+                <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-10 h-10 md:w-12 md:h-12">
+                <div class="flex flex-col">
+                    <h1 class="text-2xl md:text-3xl font-bold gradient-gold bg-clip-text text-transparent">Hermes</h1>
+                    <p class="text-xs text-slate-400">Trading Dashboard</p>
+                </div>
+            </div>
+
+            <!-- Search and User -->
+            <div class="relative flex-1 max-w-xs mx-auto md:mx-0">
+                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
-                <input type="text" placeholder="Search here..." class="w-full bg-[#1a1a2e] border border-slate-700/50 rounded-lg px-4 py-3 pl-11 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#d4952a]">
+                <input type="text" placeholder="Search currencies..." class="w-full glass-effect border border-slate-700/50 rounded-xl px-4 py-3 pl-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e8ad3a]/50 transition-all">
             </div>
-            <div class="flex-1 flex items-center justify-center">
-                <span class="text-lg md:text-2xl font-bold">€50 000</span>
+
+            <!-- Portfolio and User -->
+            <div class="flex items-center gap-4">
+                <div class="text-center hidden md:block">
+                    <p class="text-slate-400 text-xs">Portfolio Value</p>
+                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent">€50,000</span>
+                </div>
+                <a href="{% url 'hermes:login' %}" class="w-12 h-12 rounded-full gradient-gold flex items-center justify-center text-sm font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-lg">L</a>
             </div>
-            <div class="w-10 h-10 rounded-full border-2 border-[#e8ad3a] bg-[#d4952a]/60 flex items-center justify-center text-sm font-bold text-white cursor-pointer hover:opacity-80 transition-opacity" onclick="window.location.href='{% url 'hermes:login' %}'">SLB</div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             <!-- Today's Trades -->
-            <section class="col-span-1 lg:col-span-2 bg-[#1a1a2e] rounded-2xl p-4 border border-slate-800/50 overflow-scroll">
-                <h2 class="text-xl font-semibold mb-3">Today's Trades</h2>
+            <section class="col-span-1 lg:col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 overflow-scroll card-hover">
+                <h2 class="text-xl font-bold mb-4">Recent Trades</h2>
                 <table class="w-full table-fixed">
                     <colgroup>
                         <col class="w-[12%]" />
@@ -106,10 +111,10 @@
             </section>
 
             <!-- Earnings -->
-            <section class="bg-[#1a1a2e] rounded-2xl p-4 border border-slate-800/50 flex flex-col">
-                <h2 class="text-xl font-semibold mb-2">Earnings</h2>
-                <div class="text-3xl font-bold text-[#e8ad3a] mb-1">$6078.76</div>
-                <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">48%</span> More than last Month</p>
+            <section class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+                <h2 class="text-xl font-bold mb-3">Total Earnings</h2>
+                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">$6,078.76</div>
+                <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">↑ 48%</span> vs last month</p>
 
                 <div class="flex justify-center flex-1 items-center">
                     <div class="relative w-32 h-32">
@@ -131,8 +136,8 @@
             </section>
 
             <!-- Top Currencies -->
-            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-4 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-3">Top Currencies</h2>
+            <section class="col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+                <h2 class="text-xl font-bold mb-4">Market Rates</h2>
                 <table class="w-full table-fixed">
                     <colgroup>
                         <col class="w-[10%]" />
@@ -171,11 +176,11 @@
             </section>
 
             <!-- Currency -->
-            <aside class="bg-[#1a1a2e] rounded-2xl p-4 border border-[#1e293b]/50 flex flex-col">
+            <aside class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
 
                 <!-- Header with Search -->
-                <div class="mb-3">
-                    <h2 class="text-xl font-semibold mb-3">Currency</h2>
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold mb-3">Find Currencies</h2>
 
                     <div class="relative">
                         <svg
@@ -194,13 +199,13 @@
                         <input
                                 type="text"
                                 id="currencySearch"
-                                placeholder="Search currencies..."
-                                class="w-full bg-[#0f0f23] border border-[#334155]/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-[#64748b] focus:outline-none focus:border-[#d4952a]"
+                                placeholder="BTC, EUR, ETH..."
+                                class="w-full glass-effect border border-slate-700/50 rounded-xl px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-2 focus:ring-[#e8ad3a]/30 transition-all"
                                 autocomplete="off"
                         >
 
                         <!-- Dropdown Results -->
-                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-[#0f0f23] border border-[#334155]/50 rounded-lg shadow-lg z-20 currency-dropdown max-h-[104px] overflow-y-auto">
+                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-xl shadow-xl z-20 currency-dropdown max-h-[104px] overflow-y-auto">
                             <!-- Results will be populated by JavaScript -->
                         </div>
                     </div>
@@ -208,34 +213,34 @@
 
                 <!-- Selected Currencies Icons -->
                 <div class="flex-1 flex items-center justify-center">
-                    <div id="selectedCurrencies" class="flex flex-wrap justify-evenly gap-4 w-full">
+                    <div id="selectedCurrencies" class="flex flex-wrap justify-evenly gap-4 w-full py-4">
                         <!-- Default: Bitcoin -->
-                        <div class="currency-item flex flex-col items-center gap-1" data-symbol="BTC">
-                            <div class="w-14 h-14 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-2xl font-bold shadow-lg cursor-pointer relative group">
+                        <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-3xl font-bold shadow-xl cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
                                 ₿
-                                <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-[#ef4444] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button class="remove-currency absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 </button>
                             </div>
-                            <span class="text-xs text-[#94a3b8]">BTC</span>
+                            <span class="text-sm font-semibold text-slate-300">BTC</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Aimed Profit / Amount / Risk -->
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-3 gap-3 mt-4">
 
                     <!-- Aimed Profit -->
-                    <div class="bg-[#0f0f23] rounded-xl p-3 border border-[#1e293b]/50 flex flex-col justify-between">
-                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-1">
-                            <div class="w-2 h-2 rounded-full bg-[#d4952a]"></div>
-                            <span>Aimed Profit</span>
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-[#e8ad3a]/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full gradient-gold"></div>
+                            <span class="font-medium">Target Profit</span>
                         </div>
                         <div class="relative mt-auto cursor-pointer" id="aimedProfitWrapper">
                 <span
-                        class="text-base font-bold transition-opacity"
+                        class="text-lg font-bold text-[#e8ad3a] transition-opacity"
                         id="aimedProfitDisplay"
                 >
                     €{{ aimed_profit|default:"0" }}
@@ -244,20 +249,20 @@
                                     type="text"
                                     id="aimedProfitInput"
                                     value="{{ aimed_profit|default:'0' }}"
-                                    class="absolute inset-0 text-base font-bold bg-transparent border-b border-[#d4952a]/50 focus:border-[#d4952a] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-[#e8ad3a]/50 focus:border-[#e8ad3a] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
 
                     <!-- Amount -->
-                    <div class="bg-[#0f0f23] rounded-xl p-3 border border-[#1e293b]/50 flex flex-col justify-between">
-                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-1">
-                            <div class="w-2 h-2 rounded-full bg-[#ef4444]"></div>
-                            <span>Amount</span>
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-red-500/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                            <span class="font-medium">Investment</span>
                         </div>
                         <div class="relative mt-auto cursor-pointer" id="amountWrapper">
                 <span
-                        class="text-base font-bold transition-opacity"
+                        class="text-lg font-bold text-red-400 transition-opacity"
                         id="amountDisplay"
                 >
                     €{{ amount|default:"0" }}
@@ -266,26 +271,26 @@
                                     type="text"
                                     id="amountInput"
                                     value="{{ amount|default:'0' }}"
-                                    class="absolute inset-0 text-base font-bold bg-transparent border-b border-[#ef4444]/50 focus:border-[#ef4444] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-red-500/50 focus:border-red-500 outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
                             />
                         </div>
                     </div>
 
                     <!-- Risk -->
-                    <div class="bg-[#0f0f23] rounded-xl p-3 border border-[#1e293b]/50 flex flex-col justify-between">
-                        <div class="flex items-center gap-1.5 text-xs text-[#94a3b8] mb-1">
-                            <div class="w-2 h-2 rounded-full bg-[#feb002]"></div>
-                            <span>Risk</span>
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-yellow-500/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                            <span class="font-medium">Risk Level</span>
                         </div>
                         <div class="relative mt-auto">
-                            <span class="text-base font-bold" id="riskDisplay">0%</span>
+                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay">0%</span>
 
                             <input
                                     type="text"
                                     id="riskInput"
                                     readonly
                                     tabindex="-1"
-                                    class="absolute inset-0 text-base font-bold bg-transparent border-none outline-none pointer-events-none opacity-0 w-full"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-none outline-none pointer-events-none opacity-0 w-full"
                                     value="0"
                             />
                         </div>
@@ -295,8 +300,8 @@
             </aside>
 
             <!-- History -->
-            <section class="col-span-3 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-6">History</h2>
+            <section class="col-span-3 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+                <h2 class="text-xl font-bold mb-6">Profit Trend</h2>
                 <div class="relative h-72">
                     <svg class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
                         <defs>
@@ -346,10 +351,10 @@
                         <circle class="chart-point" cx="796" cy="84" r="12" fill="transparent" data-month="Dec" data-value="196" style="cursor:pointer" />
                     </svg>
                     <!-- Tooltip -->
-                    <div id="chartTooltip" class="hidden absolute pointer-events-none bg-[#0f0f23] border border-[#d4952a] rounded-lg px-3 py-2 shadow-lg z-30 text-sm">
-                        <div class="font-semibold text-[#e8ad3a]" id="tooltipMonth"></div>
+                    <div id="chartTooltip" class="hidden absolute pointer-events-none glass-effect border border-[#e8ad3a]/50 rounded-lg px-4 py-3 shadow-xl z-30 text-sm glow-gold">
+                        <div class="font-bold text-[#e8ad3a]" id="tooltipMonth"></div>
                         <div class="text-slate-300 mt-1">Value: <span class="font-bold text-white" id="tooltipValue"></span></div>
-                        <div class="text-slate-500 text-xs mt-1">More data coming soon</div>
+                        <div class="text-slate-500 text-xs mt-1">📊 Data updated</div>
                     </div>
                     <div class="absolute bottom-0 left-0 right-0 text-xs text-slate-500" style="height: 16px">
                         <span class="absolute" style="left: 2.93%; transform: translateX(-50%)">Jan</span>
