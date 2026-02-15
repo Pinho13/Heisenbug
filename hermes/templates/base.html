@@ -6,344 +6,405 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-[#0f0f23] text-white">
-<div class="flex min-h-screen">
-
-    <!-- Sidebar -->
-    <aside class="w-48 bg-[#16213e] p-4 flex flex-col">
-        <div class="mb-10 px-4 flex items-center">
-            <span class="font-bold text-white text-xl">Hermes</span>
-        </div>
-
-        <nav class="flex-1 space-y-2">
-            <a href="#" class="flex items-center gap-3 bg-indigo-600/30 text-white px-4 py-3 rounded-lg border border-indigo-500/50">
-                <span>🏠</span>
-                <span>Home</span>
-            </a>
-            <a href="#" class="flex items-center gap-3 text-slate-400 hover:text-white px-4 py-3 rounded-lg">
-                <span>📌</span>
-                <span>Pinho</span>
-            </a>
-        </nav>
-
-        <a href="#" class="flex items-center gap-3 text-slate-400 hover:text-white px-4 py-3 rounded-lg mt-auto">
-            <span>🚪</span>
-            <span>Signout</span>
-        </a>
-    </aside>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-gold { background: linear-gradient(135deg, #e8ad3a 0%, #d4952a 100%); }
+        .glow-gold { box-shadow: 0 0 20px rgba(232, 173, 58, 0.2); }
+        
+        /* Interactive elements */
+        .interactive-element {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .interactive-element:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+        }
+        
+        .interactive-element:active {
+            transform: scale(0.98);
+        }
+        
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .card-hover:active { transform: translateY(0px); }
+        
+        .glass-effect { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(10px); }
+        
+        /* Button interactions */
+        button {
+            transition: all 0.2s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0px);
+        }
+        
+        /* Table rows */
+        tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        tbody tr:hover {
+            background: rgba(232, 173, 58, 0.1) !important;
+            transform: scale(1.01);
+        }
+        
+        tbody tr:active {
+            transform: scale(0.99);
+        }
+        
+        /* Input fields */
+        input {
+            transition: all 0.2s ease;
+        }
+        
+        input:hover {
+            border-color: rgba(232, 173, 58, 0.4) !important;
+        }
+        
+        /* Badge/label interactions */
+        .badge, span {
+            transition: all 0.2s ease;
+        }
+        
+        .badge:hover, span.clickable:hover {
+            transform: scale(1.05);
+        }
+        
+        .badge:active, span.clickable:active {
+            transform: scale(0.95);
+        }
+        
+        /* Falling animation on page load */
+        @keyframes fallInPlace {
+            0% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0px);
+            }
+        }
+        
+        .fall-in-1 { opacity: 0; animation: fallInPlace 0.6s ease-out 0.1s forwards; }
+        .fall-in-2 { opacity: 0; animation: fallInPlace 0.6s ease-out 0.2s forwards; }
+        .fall-in-3 { opacity: 0; animation: fallInPlace 0.6s ease-out 0.3s forwards; }
+        .fall-in-4 { opacity: 0; animation: fallInPlace 0.6s ease-out 0.4s forwards; }
+        .fall-in-5 { opacity: 0; animation: fallInPlace 0.6s ease-out 0.5s forwards; }
+        
+        body {
+            background: linear-gradient(to bottom right, #0a0a15 0%, #0f0f23 30%, #1a1a2e 100%) !important;
+            color: white;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Mouse glow effect */
+        .mouse-glow {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(232, 173, 58, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            filter: blur(40px);
+            transform: translate(-50%, -50%);
+        }
+    </style>
+<body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
+<div class="mouse-glow" id="mouseGlow"></div>
+<div class="flex min-h-screen flex-col md:flex-row relative z-10">
 
     <!-- Main Content -->
-    <main class="flex-1 p-8">
+    <main class="flex-1 p-4 md:p-8 w-full">
 
         <!-- Header -->
-        <header class="flex justify-between items-center mb-8">
-            <div class="relative flex-1 max-w-2xl">
-                <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <input type="text" placeholder="Search here..." class="w-full bg-[#1a1a2e] border border-slate-700/50 rounded-lg px-4 py-3 pl-11 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <header class="fall-in-1 flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-6 border-b border-slate-700/30">
+            <!-- Logo and Site Name -->
+            <div class="flex items-center gap-3">
+                <img src="{% static 'img/logoInsana.png' %}" alt="Hermes Logo" class="w-10 h-10 md:w-12 md:h-12">
+                <div class="flex flex-col">
+                    <h1 class="text-2xl md:text-3xl font-bold gradient-gold bg-clip-text text-transparent">Hermes</h1>
+                    <p class="text-xs text-slate-400">Trading Dashboard</p>
+                </div>
             </div>
-            <div class="flex items-center gap-6 ml-8">
-                <span class="text-2xl font-bold">€50 000</span>
-                <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" class="w-10 h-10 rounded-full border-2 border-indigo-500">
+
+            <!-- Portfolio and User -->
+            <div class="flex items-center gap-4">
+                <div class="text-center hidden md:block">
+                    <p class="text-slate-400 text-xs">Portfolio Value</p>
+                    <span class="text-2xl font-bold gradient-gold bg-clip-text text-transparent">€50,000</span>
+                </div>
+                <a href="{% url 'hermes:login' %}" class="w-12 h-12 rounded-full gradient-gold flex items-center justify-center text-sm font-bold text-white cursor-pointer hover:opacity-90 transition-opacity shadow-lg">L</a>
             </div>
         </header>
 
-        <div class="grid grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             <!-- Today's Trades -->
-            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-6">Today's Trades</h2>
-                <table class="w-full">
+            <section class="fall-in-2 col-span-1 lg:col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 overflow-scroll card-hover">
+                <h2 class="text-xl font-bold mb-4">Recent Trades</h2>
+                <table class="w-full table-fixed">
+                    <colgroup>
+                        <col class="w-[12%]" />
+                        <col class="w-[18%]" />
+                        <col class="w-[35%]" />
+                        <col class="w-[18%]" />
+                        <col class="w-[17%]" />
+                    </colgroup>
                     <thead>
                     <tr class="text-slate-400 text-sm">
-                        <th class="text-left pb-4">Time</th>
-                        <th class="text-left pb-4">Pair's Symbol</th>
-                        <th class="text-left pb-4">State</th>
-                        <th class="text-left pb-4">Profit (%)</th>
-                        <th class="text-left pb-4">PnL</th>
+                        <th class="text-left pb-2">Time</th>
+                        <th class="text-center pb-2">Pair</th>
+                        <th class="text-center pb-2">Operation</th>
+                        <th class="text-center pb-2">Amount</th>
+                        <th class="text-center pb-2">Price</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/50">
+                    {% for trade in trades %}
                     <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="flex items-center gap-2">
-                                <button class="text-slate-500">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-                                </button>
-                                <span class="text-sm text-slate-300" id="time1">--:--:--</span>
-                            </div>
+                        <td class="py-2">
+                            <span class="text-sm text-slate-300">{{ trade.timestamp|date:"H:i:s" }}</span>
                         </td>
-                        <td class="py-4 font-medium">USD/BTC</td>
-                        <td class="py-4">
-                            <div class="flex items-center gap-2 text-sm text-slate-300">
+                        <td class="py-2 font-medium text-center">{{ trade.pair }}</td>
+                        <td class="py-2">
+                            <div class="flex items-center justify-center gap-2 text-sm">
+                                {% if trade.operation == "BUY" %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-green-500/10 text-green-400 border border-green-500/20">BUY</span>
+                                {% else %}
+                                <span class="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">SELL</span>
+                                {% endif %}
+                                <span class="text-slate-500">|</span>
+                                {% if trade.status == "EXECUTED" %}
                                 <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">● 2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
+                                <span class="text-slate-300">{{ trade.status }}</span>
+                                {% else %}
+                                <span class="text-yellow-400">{{ trade.status }}</span>
+                                {% endif %}
                             </div>
                         </td>
-                        <td class="py-4 text-green-400 font-medium">+0.52%</td>
-                        <td class="py-4">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                                        109€
-                                    </span>
-                        </td>
+                        <td class="py-2 text-slate-300 text-center">{{ trade.amount }}</td>
+                        <td class="py-2 text-center font-medium">{{ trade.price_at_execution }}</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="flex items-center gap-2">
-                                <button class="text-slate-500">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-                                </button>
-                                <span class="text-sm text-slate-300" id="time2">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-4 font-medium">USD/BTC</td>
-                        <td class="py-4">
-                            <div class="flex items-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">● 2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-4 text-red-400 font-medium">-0.52%</td>
-                        <td class="py-4">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                        -109€
-                                    </span>
-                        </td>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-slate-500">No trades yet</td>
                     </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="flex items-center gap-2">
-                                <button class="text-slate-500">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-                                </button>
-                                <span class="text-sm text-slate-300" id="time3">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-4 font-medium">USD/BTC</td>
-                        <td class="py-4">
-                            <div class="flex items-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">● 2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-4 text-green-400 font-medium">+0.52%</td>
-                        <td class="py-4">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500/10 text-green-400 border border-green-500/20">
-                                        109€
-                                    </span>
-                        </td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="flex items-center gap-2">
-                                <button class="text-slate-500">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                    </svg>
-                                </button>
-                                <span class="text-sm text-slate-300" id="time4">--:--:--</span>
-                            </div>
-                        </td>
-                        <td class="py-4 font-medium">USD/BTC</td>
-                        <td class="py-4">
-                            <div class="flex items-center gap-2 text-sm text-slate-300">
-                                <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span>Completed</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">● 2.3s</span>
-                                <span class="text-slate-500">|</span>
-                                <span class="text-slate-400">3 steps</span>
-                            </div>
-                        </td>
-                        <td class="py-4 text-red-400 font-medium">-0.52%</td>
-                        <td class="py-4">
-                                    <span class="inline-flex px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                        -109€
-                                    </span>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <!-- Currency -->
-            <aside class="bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-semibold">Currency</h2>
-                    <div class="relative">
-                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        <input type="text" placeholder="Search here..." class="bg-[#0f0f23] border border-slate-700/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-500 focus:outline-none w-36">
-                    </div>
-                </div>
-
-                <div class="flex justify-center mb-8">
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-4xl font-bold shadow-lg">
-                        ₿
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
-                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                            <div class="w-2 h-2 rounded-full bg-purple-500"></div>
-                            <span>Aimed Profit</span>
-                        </div>
-                        <div class="relative group">
-                            <span class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity" id="aimedProfitDisplay">$4,087</span>
-                            <input
-                                    type="text"
-                                    id="aimedProfitInput"
-                                    value="4087"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-purple-500/50 focus:border-purple-500 outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
-                    </div>
-                    <div class="bg-[#0f0f23] rounded-xl p-4 border border-slate-800/50">
-                        <div class="flex items-center gap-1.5 text-xs text-slate-400 mb-2">
-                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                            <span>Amount</span>
-                        </div>
-                        <div class="relative group">
-                            <span class="text-lg font-bold cursor-pointer group-hover:opacity-0 transition-opacity" id="amountDisplay">$5,506</span>
-                            <input
-                                    type="text"
-                                    id="amountInput"
-                                    value="5506"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b border-red-500/50 focus:border-red-500 outline-none opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <!-- Top Currencies -->
-            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-6">Top Currencies</h2>
-                <table class="w-full">
-                    <thead>
-                    <tr class="text-slate-400 text-sm">
-                        <th class="text-left pb-4">Icon</th>
-                        <th class="text-left pb-4">Pair's Symbol</th>
-                        <th class="text-left pb-4">Name</th>
-                        <th class="text-left pb-4">Daily Change (%)</th>
-                        <th class="text-right pb-4">Price</th>
-                    </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800/50">
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-lg font-bold shadow-lg">₿</div>
-                        </td>
-                        <td class="py-4 font-semibold">USD/BTC</td>
-                        <td class="py-4 text-sm text-slate-400">United States Dollar / Bitcoin</td>
-                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
-                        <td class="py-4 text-right font-semibold">$100,000.00</td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="w-9 h-9 rounded-full bg-purple-500 flex items-center justify-center text-lg font-bold shadow-lg">Ξ</div>
-                        </td>
-                        <td class="py-4 font-semibold">USD/ETH</td>
-                        <td class="py-4 text-sm text-slate-400">United States Dollar / Ethereum</td>
-                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
-                        <td class="py-4 text-right font-semibold">$2,000.00</td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="w-9 h-9 rounded-full bg-cyan-500 flex items-center justify-center text-lg font-bold shadow-lg">◎</div>
-                        </td>
-                        <td class="py-4 font-semibold">USD/SOL</td>
-                        <td class="py-4 text-sm text-slate-400">United States Dollar / Solana</td>
-                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
-                        <td class="py-4 text-right font-semibold">$230.00</td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-lg font-bold shadow-lg">✕</div>
-                        </td>
-                        <td class="py-4 font-semibold">USD/XRP</td>
-                        <td class="py-4 text-sm text-slate-400">United States Dollar / Ripple</td>
-                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
-                        <td class="py-4 text-right font-semibold">$1.20</td>
-                    </tr>
-                    <tr class="hover:bg-white/5">
-                        <td class="py-4">
-                            <div class="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold shadow-lg">₳</div>
-                        </td>
-                        <td class="py-4 font-semibold">USD/ADA</td>
-                        <td class="py-4 text-sm text-slate-400">United States Dollar / Cardano</td>
-                        <td class="py-4 text-green-400 font-medium">+0.23%</td>
-                        <td class="py-4 text-right font-semibold">$0.25</td>
-                    </tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </section>
 
             <!-- Earnings -->
-            <section class="bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-2">Earnings</h2>
-                <p class="text-sm text-slate-400 mb-4">Total Expense</p>
-                <div class="text-4xl font-bold text-indigo-400 mb-2">$6078.76</div>
-                <p class="text-sm text-slate-400 mb-8">Profit is <span class="text-green-400 font-semibold">48%</span> More than last Month</p>
+            <section class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+                <h2 class="text-xl font-bold mb-3">Total Earnings</h2>
+                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">$6,078.76</div>
+                <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">↑ 48%</span> vs last month</p>
 
-                <div class="flex justify-center">
-                    <div class="relative w-44 h-44">
+                <div class="flex justify-center flex-1 items-center">
+                    <div class="relative w-32 h-32">
                         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
-                            <circle cx="80" cy="80" r="70" stroke="currentColor" stroke-width="16" fill="none" class="text-slate-800" />
-                            <circle cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
+                            <circle cx="80" cy="80" r="70" stroke="#d4952a" stroke-width="16" fill="none" opacity="0.3" />
+                            <circle cx="80" cy="80" r="70" stroke="url(#gradient)" stroke-width="16" fill="none" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" class="drop-shadow-[0_0_8px_rgba(212,149,42,0.5)]" />
                             <defs>
                                 <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" style="stop-color:#818cf8" />
-                                    <stop offset="100%" style="stop-color:#6366f1" />
+                                    <stop offset="0%" style="stop-color:#e8ad3a" />
+                                    <stop offset="100%" style="stop-color:#c48425" />
                                 </linearGradient>
                             </defs>
                         </svg>
                         <div class="absolute inset-0 flex items-center justify-center">
-                            <span class="text-5xl font-bold">80%</span>
+                            <span class="text-3xl font-bold">80%</span>
                         </div>
                     </div>
                 </div>
             </section>
 
+            <!-- Top Currencies -->
+            <section class="fall-in-3 col-span-2 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+                <h2 class="text-xl font-bold mb-4">Market Rates</h2>
+                <table class="w-full table-fixed">
+                    <colgroup>
+                        <col class="w-[10%]" />
+                        <col class="w-[18%]" />
+                        <col class="w-[35%]" />
+                        <col class="w-[20%]" />
+                        <col class="w-[17%]" />
+                    </colgroup>
+                    <thead>
+                    <tr class="text-slate-400 text-sm">
+                        <th class="text-left pb-2">Icon</th>
+                        <th class="text-center pb-2">Pair's Symbol</th>
+                        <th class="text-center pb-2">Name</th>
+                        <th class="text-center pb-2">Bid / Ask</th>
+                        <th class="text-center pb-2">Price</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50">
+                    {% for currency in top_currencies %}
+                    <tr class="hover:bg-white/5">
+                        <td class="py-2.5">
+                            <div class="w-8 h-8 rounded-full {{ currency.color }} flex items-center justify-center text-base font-bold shadow-lg">{{ currency.icon }}</div>
+                        </td>
+                        <td class="py-2.5 font-semibold text-center">{{ currency.symbol }}</td>
+                        <td class="py-2.5 text-sm text-slate-400 text-center">{{ currency.name }}</td>
+                        <td class="py-2.5 text-slate-300 text-sm text-center">{{ currency.bid }}<br/>{{ currency.ask }}</td>
+                        <td class="py-2.5 text-center font-semibold">{{ currency.price }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="py-4 text-center text-slate-500">No price data available</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Currency -->
+            <aside class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+
+                <!-- Header with Search -->
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold mb-3">Find Currencies</h2>
+
+                    <div class="relative">
+                        <svg
+                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b] pointer-events-none z-10"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                        >
+                            <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            ></path>
+                        </svg>
+                        <input
+                                type="text"
+                                id="currencySearch"
+                                placeholder="BTC, EUR, ETH..."
+                                class="w-full glass-effect border border-slate-700/50 rounded-xl px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-2 focus:ring-[#e8ad3a]/30 transition-all"
+                                autocomplete="off"
+                        >
+
+                        <!-- Dropdown Results -->
+                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-xl shadow-xl z-20 currency-dropdown max-h-[104px] overflow-y-auto">
+                            <!-- Results will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Currencies Icons -->
+                <div class="flex-1 flex items-center justify-center">
+                    <div id="selectedCurrencies" class="flex flex-wrap justify-evenly gap-4 w-full py-4">
+                        <!-- Default: Bitcoin -->
+                        <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
+                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-3xl font-bold shadow-xl cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
+                                ₿
+                                <button class="remove-currency absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <span class="text-sm font-semibold text-slate-300">BTC</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aimed Profit / Amount / Risk -->
+                <div class="grid grid-cols-3 gap-3 mt-4">
+
+                    <!-- Aimed Profit -->
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-[#e8ad3a]/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full gradient-gold"></div>
+                            <span class="font-medium">Target Profit</span>
+                        </div>
+                        <div class="relative mt-auto cursor-pointer" id="aimedProfitWrapper">
+                <span
+                        class="text-lg font-bold text-[#e8ad3a] transition-opacity"
+                        id="aimedProfitDisplay"
+                >
+                    €{{ aimed_profit|default:"0" }}
+                </span>
+                            <input
+                                    type="text"
+                                    id="aimedProfitInput"
+                                    value="{{ aimed_profit|default:'0' }}"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-[#e8ad3a]/50 focus:border-[#e8ad3a] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Amount -->
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-red-500/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                            <span class="font-medium">Investment</span>
+                        </div>
+                        <div class="relative mt-auto cursor-pointer" id="amountWrapper">
+                <span
+                        class="text-lg font-bold text-red-400 transition-opacity"
+                        id="amountDisplay"
+                >
+                    €{{ amount|default:"0" }}
+                </span>
+                            <input
+                                    type="text"
+                                    id="amountInput"
+                                    value="{{ amount|default:'0' }}"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-red-500/50 focus:border-red-500 outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Risk -->
+                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-yellow-500/50 transition-all">
+                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                            <div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                            <span class="font-medium">Risk Level</span>
+                        </div>
+                        <div class="relative mt-auto">
+                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay">0%</span>
+
+                            <input
+                                    type="text"
+                                    id="riskInput"
+                                    readonly
+                                    tabindex="-1"
+                                    class="absolute inset-0 text-lg font-bold bg-transparent border-none outline-none pointer-events-none opacity-0 w-full"
+                                    value="0"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
             <!-- History -->
-            <section class="col-span-2 bg-[#1a1a2e] rounded-2xl p-6 border border-slate-800/50">
-                <h2 class="text-xl font-semibold mb-6">History</h2>
+            <section class="fall-in-5 col-span-3 glass-effect rounded-2xl p-6 border border-slate-700/30 card-hover">
+                <h2 class="text-xl font-bold mb-6">Profit Trend</h2>
                 <div class="relative h-72">
-                    <svg class="w-full h-full" viewBox="0 0 800 280" preserveAspectRatio="none">
+                    <svg class="w-full h-full" viewBox="-20 0 820 280" preserveAspectRatio="none">
                         <defs>
                             <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="rgb(99, 102, 241)" stop-opacity="0.3" />
-                                <stop offset="100%" stop-color="rgb(99, 102, 241)" stop-opacity="0" />
+                                <stop offset="0%" stop-color="rgb(212, 149, 42)" stop-opacity="0.3" />
+                                <stop offset="100%" stop-color="rgb(212, 149, 42)" stop-opacity="0" />
                             </linearGradient>
                             <filter id="glow">
                                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
@@ -358,36 +419,53 @@
                         <line x1="0" y1="168" x2="800" y2="168" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
                         <line x1="0" y1="224" x2="800" y2="224" stroke="#1e293b" stroke-width="1" opacity="0.5"/>
 
-                        <path d="M 0 224 L 67 210 L 133 168 L 200 140 L 267 154 L 333 112 L 400 126 L 467 98 L 533 70 L 600 84 L 667 56 L 733 84 L 800 70 L 800 280 L 0 280 Z" fill="url(#chartGradient)" />
-                        <path d="M 0 224 L 67 210 L 133 168 L 200 140 L 267 154 L 333 112 L 400 126 L 467 98 L 533 70 L 600 84 L 667 56 L 733 84 L 800 70" fill="none" stroke="rgb(129, 140, 248)" stroke-width="3" filter="url(#glow)" />
+                        <path d="M 4 224 L 76 210 L 148 168 L 220 140 L 292 154 L 364 112 L 436 126 L 508 98 L 580 70 L 652 84 L 724 56 L 796 84 L 796 280 L 4 280 Z" fill="url(#chartGradient)" />
+                        <path d="M 4 224 L 76 210 L 148 168 L 220 140 L 292 154 L 364 112 L 436 126 L 508 98 L 580 70 L 652 84 L 724 56 L 796 84" fill="none" stroke="rgb(232, 173, 58)" stroke-width="3" filter="url(#glow)" />
 
-                        <circle cx="0" cy="224" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="67" cy="210" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="133" cy="168" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="200" cy="140" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="267" cy="154" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="333" cy="112" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="400" cy="126" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="467" cy="98" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="533" cy="70" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="600" cy="84" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="667" cy="56" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="733" cy="84" r="4" fill="rgb(129, 140, 248)" />
-                        <circle cx="800" cy="70" r="4" fill="rgb(129, 140, 248)" />
+                        <circle class="chart-point" cx="4" cy="224" r="4" fill="rgb(232, 173, 58)" data-month="Jan" data-value="56" />
+                        <circle class="chart-point" cx="4" cy="224" r="12" fill="transparent" data-month="Jan" data-value="56" style="cursor:pointer" />
+                        <circle class="chart-point" cx="76" cy="210" r="4" fill="rgb(232, 173, 58)" data-month="Feb" data-value="70" />
+                        <circle class="chart-point" cx="76" cy="210" r="12" fill="transparent" data-month="Feb" data-value="70" style="cursor:pointer" />
+                        <circle class="chart-point" cx="148" cy="168" r="4" fill="rgb(232, 173, 58)" data-month="Mar" data-value="112" />
+                        <circle class="chart-point" cx="148" cy="168" r="12" fill="transparent" data-month="Mar" data-value="112" style="cursor:pointer" />
+                        <circle class="chart-point" cx="220" cy="140" r="4" fill="rgb(232, 173, 58)" data-month="Apr" data-value="140" />
+                        <circle class="chart-point" cx="220" cy="140" r="12" fill="transparent" data-month="Apr" data-value="140" style="cursor:pointer" />
+                        <circle class="chart-point" cx="292" cy="154" r="4" fill="rgb(232, 173, 58)" data-month="May" data-value="126" />
+                        <circle class="chart-point" cx="292" cy="154" r="12" fill="transparent" data-month="May" data-value="126" style="cursor:pointer" />
+                        <circle class="chart-point" cx="364" cy="112" r="4" fill="rgb(232, 173, 58)" data-month="Jun" data-value="168" />
+                        <circle class="chart-point" cx="364" cy="112" r="12" fill="transparent" data-month="Jun" data-value="168" style="cursor:pointer" />
+                        <circle class="chart-point" cx="436" cy="126" r="4" fill="rgb(232, 173, 58)" data-month="Jul" data-value="154" />
+                        <circle class="chart-point" cx="436" cy="126" r="12" fill="transparent" data-month="Jul" data-value="154" style="cursor:pointer" />
+                        <circle class="chart-point" cx="508" cy="98" r="4" fill="rgb(232, 173, 58)" data-month="Aug" data-value="182" />
+                        <circle class="chart-point" cx="508" cy="98" r="12" fill="transparent" data-month="Aug" data-value="182" style="cursor:pointer" />
+                        <circle class="chart-point" cx="580" cy="70" r="4" fill="rgb(232, 173, 58)" data-month="Sep" data-value="210" />
+                        <circle class="chart-point" cx="580" cy="70" r="12" fill="transparent" data-month="Sep" data-value="210" style="cursor:pointer" />
+                        <circle class="chart-point" cx="652" cy="84" r="4" fill="rgb(232, 173, 58)" data-month="Oct" data-value="196" />
+                        <circle class="chart-point" cx="652" cy="84" r="12" fill="transparent" data-month="Oct" data-value="196" style="cursor:pointer" />
+                        <circle class="chart-point" cx="724" cy="56" r="4" fill="rgb(232, 173, 58)" data-month="Nov" data-value="224" />
+                        <circle class="chart-point" cx="724" cy="56" r="12" fill="transparent" data-month="Nov" data-value="224" style="cursor:pointer" />
+                        <circle class="chart-point" cx="796" cy="84" r="4" fill="rgb(232, 173, 58)" data-month="Dec" data-value="196" />
+                        <circle class="chart-point" cx="796" cy="84" r="12" fill="transparent" data-month="Dec" data-value="196" style="cursor:pointer" />
                     </svg>
-                    <div class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-500 px-2">
-                        <span>Jan</span>
-                        <span>Feb</span>
-                        <span>Mar</span>
-                        <span>Apr</span>
-                        <span>May</span>
-                        <span>Jun</span>
-                        <span>Jul</span>
-                        <span>Aug</span>
-                        <span>Sep</span>
-                        <span>Oct</span>
-                        <span>Nov</span>
-                        <span>Dec</span>
+                    <!-- Tooltip -->
+                    <div id="chartTooltip" class="hidden absolute pointer-events-none glass-effect border border-[#e8ad3a]/50 rounded-lg px-4 py-3 shadow-xl z-30 text-sm glow-gold">
+                        <div class="font-bold text-[#e8ad3a]" id="tooltipMonth"></div>
+                        <div class="text-slate-300 mt-1">Value: <span class="font-bold text-white" id="tooltipValue"></span></div>
+                        <div class="text-slate-500 text-xs mt-1">📊 Data updated</div>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 text-xs text-slate-500" style="height: 16px">
+                        <span class="absolute" style="left: 2.93%; transform: translateX(-50%)">Jan</span>
+                        <span class="absolute" style="left: 11.71%; transform: translateX(-50%)">Feb</span>
+                        <span class="absolute" style="left: 20.49%; transform: translateX(-50%)">Mar</span>
+                        <span class="absolute" style="left: 29.27%; transform: translateX(-50%)">Apr</span>
+                        <span class="absolute" style="left: 38.05%; transform: translateX(-50%)">May</span>
+                        <span class="absolute" style="left: 46.83%; transform: translateX(-50%)">Jun</span>
+                        <span class="absolute" style="left: 55.61%; transform: translateX(-50%)">Jul</span>
+                        <span class="absolute" style="left: 64.39%; transform: translateX(-50%)">Aug</span>
+                        <span class="absolute" style="left: 73.17%; transform: translateX(-50%)">Sep</span>
+                        <span class="absolute" style="left: 81.95%; transform: translateX(-50%)">Oct</span>
+                        <span class="absolute" style="left: 90.73%; transform: translateX(-50%)">Nov</span>
+                        <span class="absolute" style="left: 99.51%; transform: translateX(-50%)">Dec</span>
                     </div>
                     <div class="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-slate-500">
                         <span>500</span>
@@ -404,104 +482,16 @@
     </main>
 </div>
 
+
+<script src="{% static 'hermes/src.js' %}"></script>
+
 <script>
-    // Atualizar o tempo em tempo real
-    function updateTime() {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('pt-PT', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-
-        // Atualizar todos os elementos de tempo
-        document.getElementById('time1').textContent = timeString;
-        document.getElementById('time2').textContent = timeString;
-        document.getElementById('time3').textContent = timeString;
-        document.getElementById('time4').textContent = timeString;
-    }
-
-    // Atualizar a cada segundo
-    updateTime();
-    setInterval(updateTime, 1000);
-
-    // Função para formatar valores monetários
-    function formatCurrency(value) {
-        return '$' + parseInt(value).toLocaleString('en-US');
-    }
-
-    // Aimed Profit - input editável
-    const aimedProfitInput = document.getElementById('aimedProfitInput');
-    const aimedProfitDisplay = document.getElementById('aimedProfitDisplay');
-
-    aimedProfitInput.addEventListener('input', function(e) {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        e.target.value = value;
+    // Mouse glow effect
+    const mouseGlow = document.getElementById('mouseGlow');
+    document.addEventListener('mousemove', (e) => {
+        mouseGlow.style.left = e.clientX + 'px';
+        mouseGlow.style.top = e.clientY + 'px';
     });
-
-    aimedProfitInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '4087';
-        e.target.value = value;
-        aimedProfitDisplay.textContent = formatCurrency(value);
-
-        // Aqui podes adicionar um AJAX call para guardar no backend
-        // saveToBackend('aimed_profit', value);
-    });
-
-    // Amount - input editável
-    const amountInput = document.getElementById('amountInput');
-    const amountDisplay = document.getElementById('amountDisplay');
-
-    amountInput.addEventListener('input', function(e) {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        e.target.value = value;
-    });
-
-    amountInput.addEventListener('blur', function(e) {
-        const value = e.target.value || '5506';
-        e.target.value = value;
-        amountDisplay.textContent = formatCurrency(value);
-
-        // Aqui podes adicionar um AJAX call para guardar no backend
-        // saveToBackend('amount', value);
-    });
-
-    // Opcional: Função para guardar no backend via AJAX
-    /*
-    function saveToBackend(field, value) {
-        fetch('/api/update-settings/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                field: field,
-                value: value
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Saved:', data);
-        });
-    }
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    */
 </script>
 </body>
 </html>
