@@ -103,9 +103,23 @@
         .error-message {
             animation: slideIn 0.3s ease-out;
         }
+        
+        /* Mouse glow effect */
+        .mouse-glow {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(232, 173, 58, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+            filter: blur(40px);
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
-<body class="login-container min-h-screen flex items-center justify-center px-4">
+<body class="login-container min-h-screen flex items-center justify-center px-4 relative">
+    <div class="mouse-glow" id="mouseGlow"></div>
     <div class="absolute inset-0 z-0"></div>
     <div class="relative z-10 w-full max-w-md">
         
@@ -203,6 +217,13 @@
             errorDiv.textContent = 'An error occurred. Please try again.';
             errorDiv.classList.remove('hidden');
         }
+    });
+    
+    // Mouse glow effect
+    const mouseGlow = document.getElementById('mouseGlow');
+    document.addEventListener('mousemove', (e) => {
+        mouseGlow.style.left = e.clientX + 'px';
+        mouseGlow.style.top = e.clientY + 'px';
     });
     </script>
 </body>
