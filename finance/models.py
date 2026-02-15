@@ -112,3 +112,31 @@ class UserBalance(models.Model):
 
     class Meta:
         unique_together = ('user', 'currency') # Um registo por moeda por user
+
+
+class PriceSnapshot2(models.Model):
+    pair = models.CharField(max_length=20, db_index=True)
+    bid = models.DecimalField(max_digits=20, decimal_places=8)
+    ask = models.DecimalField(max_digits=20, decimal_places=8)
+    currency = models.CharField(max_length=10, default='USD')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        get_latest_by = 'timestamp'
+
+    def __str__(self):
+        return f"{self.pair} @ {self.ask} ({self.currency}) em {self.timestamp}"
+    
+
+class PriceSnapshot3(models.Model):
+    pair = models.CharField(max_length=20, db_index=True)
+    bid = models.DecimalField(max_digits=20, decimal_places=8)
+    ask = models.DecimalField(max_digits=20, decimal_places=8)
+    currency = models.CharField(max_length=10, default='USD')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        get_latest_by = 'timestamp'
+
+    def __str__(self):
+        return f"{self.pair} @ {self.ask} ({self.currency}) em {self.timestamp}"    
