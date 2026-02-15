@@ -23,8 +23,8 @@ def get_best_prices(pair):
     result = PriceSnapshot.objects.filter(
         pair=pair
     ).aggregate(
-        best_bid=Min('bid'),
-        best_ask=Max('ask'),
+        best_bid=Max('bid'),
+        best_ask=Min('ask'),
     )
     return {
         'pair': pair,
