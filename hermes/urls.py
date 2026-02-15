@@ -11,5 +11,6 @@ urlpatterns = [
     path('api/bot/status/', views.bot_status, name='bot_status'),
     path('api/trades/', views.get_recent_trades, name='trades'),
     path('api/metrics/', views.get_dashboard_metrics, name='metrics'),
+    path('api/prices/', views.get_market_prices, name='prices'),
     path('api/preferences/', views.user_preferences, name='preferences'),
 ]

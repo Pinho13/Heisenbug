@@ -307,7 +307,7 @@
                         <th class="text-center pb-2">Price</th>
                     </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-800/50">
+                    <tbody id="market-rates-body" class="divide-y divide-slate-800/50">
                     {% for currency in top_currencies %}
                     <tr class="hover:bg-white/5">
                         <td class="py-2.5">
@@ -775,6 +775,35 @@
                     }
                 })
                 .catch(err => console.error('Error refreshing trades:', err));
+        }, 2000);
+
+        // Refresh market rates every 2 seconds
+        setInterval(function() {
+            fetch('/hermes/api/prices/')
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('market-rates-body');
+                    if (!tbody || !data.prices) return;
+
+                    if (data.prices.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-500">No price data available</td></tr>';
+                    } else {
+                        let html = '';
+                        data.prices.forEach(p => {
+                            html += `<tr class="hover:bg-white/5">
+                                <td class="py-2.5">
+                                    <div class="w-8 h-8 rounded-full ${p.color} flex items-center justify-center text-base font-bold shadow-lg">${p.icon}</div>
+                                </td>
+                                <td class="py-2.5 font-semibold text-center">${p.symbol}</td>
+                                <td class="py-2.5 text-sm text-slate-400 text-center">${p.name}</td>
+                                <td class="py-2.5 text-slate-300 text-sm text-center">${p.bid}<br/>${p.ask}</td>
+                                <td class="py-2.5 text-center font-semibold">${p.price}</td>
+                            </tr>`;
+                        });
+                        tbody.innerHTML = html;
+                    }
+                })
+                .catch(err => console.error('Error refreshing market rates:', err));
         }, 2000);
 
         // Refresh metrics every 2 seconds

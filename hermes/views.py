@@ -90,12 +90,10 @@ def calculate_risk_level(all_trades, config):
     return max(0, min(100, risk_level))
 
 CURRENCIES = [
-    {'symbol': 'BTC-EUR', 'name': 'Bitcoin / Euro', 'icon': '₿', 'color': 'bg-orange-500'},
-    {'symbol': 'ETH-EUR', 'name': 'Ethereum / Euro', 'icon': 'Ξ', 'color': 'bg-purple-500'},
-    {'symbol': 'EUR-USD', 'name': 'Euro / United States Dollar', 'icon': '€', 'color': 'bg-blue-500'},
-    {'symbol': 'BTC-USD', 'name': 'Bitcoin / United States Dollar', 'icon': '₿', 'color': 'bg-yellow-500'},
-    {'symbol': 'ETH-USD', 'name': 'Ethereum / United States Dollar', 'icon': 'Ξ', 'color': 'bg-indigo-500'},
-    {'symbol': 'USD-EUR', 'name': 'United States Dollar / Euro', 'icon': '$', 'color': 'bg-green-500'},
+    {'symbol': 'BTCUSD', 'name': 'Bitcoin / US Dollar', 'icon': '₿', 'color': 'bg-orange-500'},
+    {'symbol': 'ETHUSD', 'name': 'Ethereum / US Dollar', 'icon': 'Ξ', 'color': 'bg-purple-500'},
+    {'symbol': 'EURUSD', 'name': 'Euro / US Dollar', 'icon': '€', 'color': 'bg-blue-500'},
+    {'symbol': 'USDEUR', 'name': 'US Dollar / Euro', 'icon': '$', 'color': 'bg-green-500'},
 ]
 
 
@@ -139,6 +137,7 @@ def home(request):
             logger.error(f"Error loading cached price for {currency['symbol']}: {e}")
 
     # Fetch recent trades for this user
+    # NOTE: top_currencies is also served live via /hermes/api/prices/
     trades = TradeHistory.objects.filter(user=current_user).order_by('-timestamp')[:10]
     
     # Calculate total earnings and win rate from all trades for this user
@@ -393,17 +392,15 @@ def bot_start(request):
             config.bot_user = request.user
             config.save()
 
-        # Seed initial balance from investment amount if user has no balances
+        # Seed initial balances (EUR + USD) from investment amount if user has no balances
         if request.user.is_authenticated and config.investment_amount > 0:
             from decimal import Decimal
             existing = UserBalance.objects.filter(user=request.user)
             if not existing.exists():
-                UserBalance.objects.create(
-                    user=request.user,
-                    currency='EUR',
-                    amount=Decimal(str(config.investment_amount))
-                )
-                logger.info(f"Created initial EUR balance of {config.investment_amount} for {request.user}")
+                half = Decimal(str(config.investment_amount)) / 2
+                UserBalance.objects.create(user=request.user, currency='EUR', amount=half)
+                UserBalance.objects.create(user=request.user, currency='USD', amount=half)
+                logger.info(f"Created initial EUR+USD balances of {half} each for {request.user}")
 
         # Update config
         config.is_active = True
@@ -543,6 +540,43 @@ def get_dashboard_metrics(request):
         })
     except Exception as e:
         logger.error(f"Error fetching metrics: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+@login_required(login_url='/hermes/login/')
+@require_http_methods(["GET"])
+def get_market_prices(request):
+    """Get current market rates live from the Uphold API."""
+    try:
+        from finance.uphold_api import UpholdAPIHandler
+        api = UpholdAPIHandler()
+        prices = []
+        for currency in CURRENCIES:
+            ticker = api.get_ticker(currency['symbol'])
+            if ticker:
+                bid = float(ticker.get('bid', 0))
+                ask = float(ticker.get('ask', 0))
+            else:
+                # Fallback to latest DB snapshot if API is unreachable
+                snapshot = PriceSnapshot.objects.filter(pair=currency['symbol']).order_by('-timestamp').first()
+                if snapshot:
+                    bid = float(snapshot.bid)
+                    ask = float(snapshot.ask)
+                else:
+                    continue
+            price = (bid + ask) / 2
+            prices.append({
+                'symbol': currency['symbol'],
+                'name': currency['name'],
+                'icon': currency['icon'],
+                'color': currency['color'],
+                'price': f'${price:,.2f}',
+                'bid': f'{bid:,.4f}',
+                'ask': f'{ask:,.4f}',
+            })
+        return JsonResponse({'prices': prices})
+    except Exception as e:
+        logger.error(f"Error fetching market prices: {e}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 

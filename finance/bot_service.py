@@ -33,13 +33,38 @@ class TradeBot:
         config = BotConfig.get_config()
         if not config.is_active: return []
 
-        # Load the latest snapshot per (pair, source) so we can compare sources
+        # Fetch live prices from the Uphold API instead of using stale DB snapshots
+        allowed = [c.strip() for c in config.selected_currencies.split(',') if c.strip()]
+        if not allowed:
+            allowed = ["BTC", "ETH", "EUR", "USD"]
+
+        tickers = self.api.get_all_tickers() or []
         tickers_by_source = {}  # {pair: {source: {ask, bid}}}
-        for snap in PriceSnapshot.objects.values('pair', 'source').distinct():
-            pair, source = snap['pair'], snap['source']
-            latest = PriceSnapshot.objects.filter(pair=pair, source=source).order_by('-timestamp').first()
-            if latest:
-                tickers_by_source.setdefault(pair, {})[source] = {'ask': latest.ask, 'bid': latest.bid}
+        for t in tickers:
+            p = t.get('pair')
+            if not p or not any(m in p for m in allowed):
+                continue
+            try:
+                ask = Decimal(str(t['ask']))
+                bid = Decimal(str(t['bid']))
+            except Exception:
+                continue
+
+            tickers_by_source.setdefault(p, {})['uphold'] = {'ask': ask, 'bid': bid}
+
+            # Simulate a second exchange with independent shifts on bid and ask.
+            # The ask is shifted down and the bid up so the simulated exchange
+            # can offer a tighter (sometimes inverted) spread compared to the
+            # real one, which is what creates cross-exchange arbitrage.
+            ask_shift = ask * Decimal(str(random.uniform(-0.008, 0.002)))
+            bid_shift = bid * Decimal(str(random.uniform(-0.002, 0.008)))
+            tickers_by_source[p]['simulated'] = {'ask': ask + ask_shift, 'bid': bid + bid_shift}
+
+            # Also save snapshots so the dashboard/history stays up to date
+            c = t.get('currency', '')
+            sim = tickers_by_source[p]['simulated']
+            PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c, source='uphold')
+            PriceSnapshot.objects.create(pair=p, bid=sim['bid'], ask=sim['ask'], currency=c, source='simulated')
 
         balances = {b.currency: b.amount for b in UserBalance.objects.filter(user_id=self.user_id)}
 
@@ -115,11 +140,10 @@ class TradeBot:
                     try:
                         ask, bid = Decimal(str(t['ask'])), Decimal(str(t['bid']))
                         PriceSnapshot.objects.create(pair=p, bid=bid, ask=ask, currency=c, source='uphold')
-                        # Simulate a second exchange whose price level is slightly
-                        # shifted from the real one (same spread, different mid-price).
-                        # Real cross-exchange differences are typically 0.05–0.15%.
-                        shift = ask * Decimal(random.uniform(-0.0015, 0.0015))
-                        PriceSnapshot.objects.create(pair=p, bid=bid + shift, ask=ask + shift, currency=c, source='simulated')
+                        # Simulate a second exchange with independent bid/ask shifts
+                        ask_shift = ask * Decimal(str(random.uniform(-0.008, 0.002)))
+                        bid_shift = bid * Decimal(str(random.uniform(-0.002, 0.008)))
+                        PriceSnapshot.objects.create(pair=p, bid=bid + bid_shift, ask=ask + ask_shift, currency=c, source='simulated')
                     except Exception as e:
                         logger.warning(f"Failed to create snapshot for {p}: {e}")
                         continue
@@ -255,9 +279,6 @@ class BotRunner:
 
     def _run_loop(self):
         print("🤖 Bot loop started!")
-        ticker_refresh_interval = 15.0
-        # Start at 0 so the first ticker pull + trade happens immediately
-        lastFullPull = 0
         try:
             while self.running:
                 try:
@@ -266,19 +287,15 @@ class BotRunner:
                         self._interruptible_sleep(2)
                         continue
 
-                    now = time.monotonic()
-                    if now - lastFullPull >= ticker_refresh_interval:
-                        print("📊 Fetching tickers...")
-                        self.bot.refresh_all_tickers()
-                        lastFullPull = now
-
-                    # Always try to trade using whatever snapshots exist
+                    # run_iteration() now fetches live prices from the API,
+                    # generates the simulated source, saves snapshots, and trades
+                    # — all in one step with fresh data every cycle.
+                    print("📊 Fetching live prices & trading...")
                     executed = self.bot.run_iteration()
                     if executed:
                         print(f"✅ Executed {len(executed)} trades")
 
-                    # Sleep 10 seconds between iterations (responsive enough
-                    # for a dashboard, light enough on the DB)
+                    # Sleep 10 seconds between iterations
                     self._interruptible_sleep(10)
                 except Exception as e:
                     print(f"⚠️ Error in iteration: {e}")
