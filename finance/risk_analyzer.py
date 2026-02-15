@@ -44,83 +44,34 @@ class TradeDecision:
 
 
 class RiskAnalyzer:
-    def __init__(self, volatility_window=10):
-        self.volatility_window = volatility_window
-        self.price_history = deque(maxlen=volatility_window)
+    def __init__(self, window=10):
+        self.window = window
 
-    def add_price(self, price: Decimal):
-        """Record a price point"""
-        self.price_history.append(float(price))
-
-    def calculate_volatility(self) -> float:
-        """returns float: 0 is no volatility, increases with volatility"""
-        if len(self.price_history) < 2:
-            return 0.0
-        try:
-            prices = list(self.price_history)
-            mean_price = statistics.mean(prices)
-            if mean_price == 0:
-                return 0.0
-            std_dev = statistics.stdev(prices)
-            volatility = std_dev / mean_price
-            return min(volatility, 1.0)
-        except Exception:
-            return 0.0
-
-    def calculate_price_momentum(self) -> float:
-        """float -1 to 1"""
-        if len(self.price_history) < 2:
-            return 0.0
-        prices = list(self.price_history)
-        first_price = prices[0]
-        last_price = prices[-1]
-
-        if first_price == 0:
-            return 0.0
-
-        change = (last_price - first_price) / first_price
-        return max(-1.0, min(1.0, change))
-
-    def calculate_risk_score(
-        self,
-        potential_gain: float,
-        volatility: float,
-        confidence: float = 0.5
-    ) -> float:
-        """Calculates risk, Float from 0 to 1, 1 being high risk"""
-        if potential_gain <= 0:
-            return 1.0  # no upside is high risk
-
-        risk = volatility / max(confidence * max(potential_gain, 0.01), 0.01)
-        return min(risk, 1.0)
-
-    def should_trade(
-        self,
-        risk_score: float,
-        confidence: float,
-        risk_tolerance: float,
-        min_confidence: float = 0.6
-    ) -> bool:
-        """returns true if trade meets criteria"""
-        if confidence < min_confidence:
-            return False
-
-        max_acceptable_risk = risk_tolerance
-        if risk_score > max_acceptable_risk:
-            return False
-
-        return True
-    def calculate_volatility(self, pair_symbol) -> float:
+    def calculate_volatility(self, pair_symbol: str) -> float:
+        """Calcula a volatilidade real baseada nos snapshots da DB"""
+        from finance.models import PriceSnapshot
+        import statistics
+        
+        # Vai buscar os últimos X preços da base de dados
         snapshots = PriceSnapshot.objects.filter(pair=pair_symbol).order_by('-timestamp')[:self.window]
-        prices = [float(s.last) for s in snapshots]
+        
+        if len(snapshots) < 2:
+            return 0.05  # Volatilidade base se não houver histórico
 
-        if len(prices) < 2:
-            return 0.05 
+        # Usamos o preço 'ask' para a média
+        prices = [float(s.ask) for s in snapshots]
+        
+        try:
+            mean_price = statistics.mean(prices)
+            if mean_price == 0: return 0.05
+            std_dev = statistics.stdev(prices)
+            return min(std_dev / mean_price, 1.0)
+        except:
+            return 0.05
 
-        return statistics.stdev(prices) / statistics.mean(prices)
-    
-    def calculate_risk_score(self, expected_return, volatility, confidence) -> float:
-        return (volatility * 0.5) + (1 - confidence) * 0.5
+    def calculate_risk_score(self, expected_return: float, volatility: float, confidence: float) -> float:
+        # Score de 0 a 1: quanto mais alto, mais risco
+        return (volatility * 0.6) + (1 - confidence) * 0.4
 
-    def should_trade(self, risk_score, confidence, tolerance, min_conf) -> bool:
+    def should_trade(self, risk_score: float, confidence: float, tolerance: float, min_conf: float) -> bool:
         return risk_score <= tolerance and confidence >= min_conf
