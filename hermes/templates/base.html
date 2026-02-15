@@ -82,6 +82,31 @@
             transform: scale(0.95);
         }
         
+        /* Bot Button Styles */
+        .bot-btn-stop {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: 2px solid #b91c1c;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        }
+        
+        .bot-btn-stop:hover {
+            box-shadow: 0 0 50px rgba(239, 68, 68, 0.5);
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+        }
+        
+        .bot-btn-start {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: 2px solid #15803d;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
+        }
+        
+        .bot-btn-start:hover {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 0.5);
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        }
+        
         /* Falling animation on page load */
         @keyframes fallInPlace {
             0% {
@@ -118,6 +143,24 @@
             z-index: 1;
             filter: blur(40px);
             transform: translate(-50%, -50%);
+        }
+        
+        /* Chart Tooltip */
+        #chartTooltip {
+            background: rgba(26, 26, 46, 0.95) !important;
+            backdrop-filter: blur(10px) !important;
+            border: 1px solid rgba(232, 173, 58, 0.3) !important;
+            position: fixed !important;
+            z-index: 9999 !important;
+            pointer-events: none !important;
+            white-space: nowrap;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+        }
+        
+        #chartTooltip.hidden {
+            display: none !important;
+        }
         }
     </style>
 <body class="bg-gradient-to-br from-[#0a0a15] via-[#0f0f23] to-[#1a1a2e] text-white">
@@ -210,8 +253,8 @@
             <!-- Earnings -->
             <section class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
                 <h2 class="text-xl font-bold mb-3">Total Earnings</h2>
-                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">$6,078.76</div>
-                <p class="text-sm text-slate-400 mb-4">Profit is <span class="text-green-400 font-semibold">↑ 48%</span> vs last month</p>
+                <div class="text-4xl font-bold gradient-gold bg-clip-text text-transparent mb-2">€{{ total_earnings|default:"0.00" }}</div>
+                <p class="text-sm text-slate-400 mb-4">Win Rate: <span class="text-green-400 font-semibold">↑ {{ win_rate|default:"0" }}%</span> ({{ total_trades|default:"0" }} trades)</p>
 
                 <div class="flex justify-center flex-1 items-center">
                     <div class="relative w-32 h-32">
@@ -272,16 +315,38 @@
                 </table>
             </section>
 
-            <!-- Currency -->
-            <aside class="glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
+            <!-- Bot Control -->
+            <aside class="fall-in-4 glass-effect rounded-2xl p-6 border border-slate-700/30 flex flex-col card-hover">
 
-                <!-- Header with Search -->
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold mb-3">Find Currencies</h2>
+                <!-- Header -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-4">Trading Bot</h2>
+                    
+                    <!-- Bot Status -->
+                    <div id="botStatus" class="flex items-center gap-2 mb-6 p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                        <div id="statusDot" class="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                        <span id="statusText" class="text-sm font-medium text-slate-300">Bot Stopped</span>
+                    </div>
+                </div>
 
-                    <div class="relative">
+                <!-- Bot Control Button -->
+                <div class="mb-6">
+                    <button id="botToggleBtn" class="bot-btn-stop w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 hover:shadow-lg active:scale-95" onclick="toggleBot()">
+                        <span class="flex items-center justify-center gap-2">
+                            <span id="botBtnIcon">▶</span>
+                            <span id="botBtnText">Start Bot</span>
+                        </span>
+                    </button>
+                </div>
+                
+                <!-- Selected Currencies -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3">Trading Pairs</h3>
+                    
+                    <!-- Currency Search -->
+                    <div class="relative mb-4">
                         <svg
-                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748b] pointer-events-none z-10"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none z-10"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -296,60 +361,35 @@
                         <input
                                 type="text"
                                 id="currencySearch"
-                                placeholder="BTC, EUR, ETH..."
-                                class="w-full glass-effect border border-slate-700/50 rounded-xl px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-2 focus:ring-[#e8ad3a]/30 transition-all"
+                                placeholder="Add BTC, EUR, ETH..."
+                                class="w-full glass-effect border border-slate-700/50 rounded-lg px-3 py-2 pl-9 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#e8ad3a] focus:ring-1 focus:ring-[#e8ad3a]/30 transition-all"
                                 autocomplete="off"
                         >
 
                         <!-- Dropdown Results -->
-                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-xl shadow-xl z-20 currency-dropdown max-h-[104px] overflow-y-auto">
+                        <div id="currencyDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-effect border border-slate-700/50 rounded-lg shadow-xl z-20 currency-dropdown max-h-32 overflow-y-auto">
                             <!-- Results will be populated by JavaScript -->
                         </div>
                     </div>
-                </div>
-
-                <!-- Selected Currencies Icons -->
-                <div class="flex-1 flex items-center justify-center">
-                    <div id="selectedCurrencies" class="flex flex-wrap justify-evenly gap-4 w-full py-4">
+                    
+                    <div id="selectedCurrencies" class="flex flex-wrap gap-3">
                         <!-- Default: Bitcoin -->
                         <div class="currency-item flex flex-col items-center gap-2" data-symbol="BTC">
-                            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-3xl font-bold shadow-xl cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#fb923c] to-[#ea580c] flex items-center justify-center text-xl font-bold shadow-lg cursor-pointer relative group glow-gold hover:scale-110 transition-transform">
                                 ₿
-                                <button class="remove-currency absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <button class="remove-currency absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 </button>
                             </div>
-                            <span class="text-sm font-semibold text-slate-300">BTC</span>
+                            <span class="text-xs font-semibold text-slate-300">BTC</span>
                         </div>
                     </div>
                 </div>
-
-                <!-- Aimed Profit / Amount / Risk -->
-                <div class="grid grid-cols-3 gap-3 mt-4">
-
-                    <!-- Aimed Profit -->
-                    <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-[#e8ad3a]/50 transition-all">
-                        <div class="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                            <div class="w-2.5 h-2.5 rounded-full gradient-gold"></div>
-                            <span class="font-medium">Target Profit</span>
-                        </div>
-                        <div class="relative mt-auto cursor-pointer" id="aimedProfitWrapper">
-                <span
-                        class="text-lg font-bold text-[#e8ad3a] transition-opacity"
-                        id="aimedProfitDisplay"
-                >
-                    €{{ aimed_profit|default:"0" }}
-                </span>
-                            <input
-                                    type="text"
-                                    id="aimedProfitInput"
-                                    value="{{ aimed_profit|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-[#e8ad3a]/50 focus:border-[#e8ad3a] outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
-                    </div>
+                
+                <!-- Investment and Risk -->
+                <div class="grid grid-cols-2 gap-3">
 
                     <!-- Amount -->
                     <div class="glass-effect rounded-xl p-4 border border-slate-700/50 flex flex-col justify-between hover:border-red-500/50 transition-all">
@@ -357,20 +397,13 @@
                             <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                             <span class="font-medium">Investment</span>
                         </div>
-                        <div class="relative mt-auto cursor-pointer" id="amountWrapper">
-                <span
-                        class="text-lg font-bold text-red-400 transition-opacity"
-                        id="amountDisplay"
-                >
-                    €{{ amount|default:"0" }}
-                </span>
-                            <input
-                                    type="text"
-                                    id="amountInput"
-                                    value="{{ amount|default:'0' }}"
-                                    class="absolute inset-0 text-lg font-bold bg-transparent border-b-2 border-red-500/50 focus:border-red-500 outline-none opacity-0 focus:opacity-100 transition-opacity w-full"
-                            />
-                        </div>
+                        <input
+                                type="text"
+                                id="amountInput"
+                                value="{{ amount|default:'0' }}"
+                                placeholder="Enter amount"
+                                class="mt-auto text-lg font-bold bg-slate-900/50 text-red-400 border-b-2 border-red-500/50 focus:border-red-500 outline-none focus:outline-none transition-all w-full px-0 py-1"
+                        />
                     </div>
 
                     <!-- Risk -->
@@ -380,7 +413,7 @@
                             <span class="font-medium">Risk Level</span>
                         </div>
                         <div class="relative mt-auto">
-                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay">0%</span>
+                            <span class="text-lg font-bold text-yellow-400" id="riskDisplay">{{ risk_level|default:"0" }}%</span>
 
                             <input
                                     type="text"
@@ -388,12 +421,11 @@
                                     readonly
                                     tabindex="-1"
                                     class="absolute inset-0 text-lg font-bold bg-transparent border-none outline-none pointer-events-none opacity-0 w-full"
-                                    value="0"
+                                    value="{{ risk_level|default:'0' }}"
                             />
                         </div>
                     </div>
                 </div>
-
             </aside>
 
             <!-- History -->
@@ -492,6 +524,94 @@
         mouseGlow.style.left = e.clientX + 'px';
         mouseGlow.style.top = e.clientY + 'px';
     });
+    
+    // Bot Toggle Function
+    let botRunning = false;
+    
+    function toggleBot() {
+        botRunning = !botRunning;
+        const btn = document.getElementById('botToggleBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const btnIcon = document.getElementById('botBtnIcon');
+        const btnText = document.getElementById('botBtnText');
+        
+        if (botRunning) {
+            // Bot Started
+            btn.classList.remove('bot-btn-stop');
+            btn.classList.add('bot-btn-start');
+            statusDot.classList.remove('bg-red-500');
+            statusDot.classList.add('bg-green-500');
+            statusText.textContent = 'Bot Running';
+            btnIcon.textContent = '⏸';
+            btnText.textContent = 'Stop Bot';
+        } else {
+            // Bot Stopped
+            btn.classList.remove('bot-btn-start');
+            btn.classList.add('bot-btn-stop');
+            statusDot.classList.remove('bg-green-500');
+            statusDot.classList.add('bg-red-500');
+            statusText.textContent = 'Bot Stopped';
+            btnIcon.textContent = '▶';
+            btnText.textContent = 'Start Bot';
+        }
+    }
+    
+    // Chart Tooltip on Hover
+    const chartContainer = document.querySelector('.relative.h-72');
+    const chartSvg = document.querySelector('.relative.h-72 svg');
+    const chartPoints = document.querySelectorAll('circle.chart-point');
+    const tooltip = document.getElementById('chartTooltip');
+    const tooltipMonth = document.getElementById('tooltipMonth');
+    const tooltipValue = document.getElementById('tooltipValue');
+    
+    if (tooltip && chartContainer) {
+        // Handle mousemove over SVG to detect point hovers
+        chartSvg.addEventListener('mousemove', (e) => {
+            let isOverPoint = false;
+            
+            chartPoints.forEach(point => {
+                // Get SVG coordinates
+                const cx = parseFloat(point.getAttribute('cx'));
+                const cy = parseFloat(point.getAttribute('cy'));
+                const r = parseFloat(point.getAttribute('r'));
+                
+                // Get SVG dimensions
+                const svg = point.ownerSVGElement;
+                const rect = svg.getBoundingClientRect();
+                const svgViewBox = svg.viewBox.baseVal;
+                
+                // Convert mouse position to SVG coordinates
+                const x = (e.clientX - rect.left) * (svgViewBox.width / rect.width) + svgViewBox.x;
+                const y = (e.clientY - rect.top) * (svgViewBox.height / rect.height) + svgViewBox.y;
+                
+                // Check distance from point
+                const distance = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+                
+                if (distance <= r + 5) {
+                    const month = point.getAttribute('data-month');
+                    const value = point.getAttribute('data-value');
+                    
+                    tooltipMonth.textContent = month;
+                    tooltipValue.textContent = '€' + value;
+                    
+                    tooltip.classList.remove('hidden');
+                    tooltip.style.left = (e.clientX - 50) + 'px';
+                    tooltip.style.top = (e.clientY - 80) + 'px';
+                    
+                    isOverPoint = true;
+                }
+            });
+            
+            if (!isOverPoint) {
+                tooltip.classList.add('hidden');
+            }
+        }, true);
+        
+        chartSvg.addEventListener('mouseleave', () => {
+            tooltip.classList.add('hidden');
+        });
+    }
 </script>
 </body>
 </html>

@@ -49,6 +49,25 @@ def home(request):
 
     # Fetch recent trades
     trades = TradeHistory.objects.order_by('-timestamp')[:10]
+    
+    # Calculate total earnings and win rate from all trades
+    all_trades = TradeHistory.objects.all()
+    total_profit = 0
+    winning_trades = 0
+    total_trades = all_trades.count()
+    
+    for trade in all_trades:
+        if hasattr(trade, 'profit') and trade.profit:
+            try:
+                profit_value = float(trade.profit)
+                total_profit += profit_value
+                if profit_value > 0:
+                    winning_trades += 1
+            except (ValueError, TypeError):
+                pass
+    
+    # Calculate win rate percentage
+    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
 
     # Fetch bot config
     try:
@@ -58,12 +77,38 @@ def home(request):
     except Exception:
         risk_tolerance = 0.5
         trade_size = 0.1
+    
+    # Calculate risk level based on loss rate and trade volatility
+    risk_level = 0
+    if total_trades > 0:
+        # Base risk from loss rate
+        losing_trades = total_trades - winning_trades
+        loss_rate = (losing_trades / total_trades)  # 0 to 1
+        
+        # Base risk = loss rate * 100 (0-100%)
+        base_risk = loss_rate * 100
+        
+        # Adjust based on trade size (higher investment = higher risk)
+        size_multiplier = 1 + (trade_size * 2)  # 1 to 3x multiplier
+        
+        # Calculate final risk
+        risk_level = base_risk * size_multiplier
+        
+        # Cap at 100%
+        risk_level = min(risk_level, 100)
+    else:
+        # Default: use risk tolerance from config
+        risk_level = risk_tolerance * 100
 
     context = {
         'top_currencies': top_currencies,
         'trades': trades,
         'risk_tolerance': risk_tolerance,
         'trade_size': trade_size,
+        'total_earnings': f'{total_profit:,.2f}',
+        'win_rate': f'{win_rate:.1f}',
+        'total_trades': total_trades,
+        'risk_level': f'{min(risk_level, 100):.1f}',
     }
 
     return render(request, 'base.html', context)
